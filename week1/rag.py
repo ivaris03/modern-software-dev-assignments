@@ -37,7 +37,20 @@ QUESTION = (
 
 
 # TODO: Fill this in!
-YOUR_SYSTEM_PROMPT = ""
+YOUR_SYSTEM_PROMPT = """You are a precise Python coding assistant.
+Use only the API documentation provided in the user context.
+Return exactly one fenced Python code block and no extra text.
+
+Write a function named fetch_user_name(user_id: str, api_key: str) -> str.
+Requirements:
+- Import requests.
+- Use the documented base URL and the /users/{id} endpoint.
+- Call requests.get(...).
+- Send the authentication header exactly as X-API-Key with the api_key value.
+- Call response.raise_for_status() before reading the response body.
+- Parse the JSON response and return only the user's name string.
+- Do not add explanations, tests, or unrelated helpers.
+"""
 
 
 # For this simple example
@@ -56,7 +69,17 @@ def YOUR_CONTEXT_PROVIDER(corpus: List[str]) -> List[str]:
 
     For example, return [] to simulate missing context, or [corpus[0]] to include the API docs.
     """
-    return []
+    relevant_docs: List[str] = []
+    for doc in corpus:
+        normalized = doc.lower()
+        if (
+            "base url:" in normalized
+            and "x-api-key" in normalized
+            and "get /users/{id}" in normalized
+            and '"name"' in normalized
+        ):
+            relevant_docs.append(doc)
+    return relevant_docs
 
 
 def make_user_prompt(question: str, context_docs: List[str]) -> str:

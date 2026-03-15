@@ -7,7 +7,33 @@ load_dotenv()
 NUM_RUNS_TIMES = 5
 
 # TODO: Fill this in!
-YOUR_SYSTEM_PROMPT = ""
+YOUR_SYSTEM_PROMPT = """You are a deterministic character-reversal function.
+Treat the input as raw letters only. Do not interpret meaning, spelling, abbreviations, or substrings such as "http" or "status".
+Reverse every character exactly from right to left.
+Think silently, then output only the reversed word on a single line.
+
+Follow these examples exactly:
+
+User: Reverse the order of letters in the following word. Only output the reversed word, no other text:
+
+http
+Assistant: ptth
+
+User: Reverse the order of letters in the following word. Only output the reversed word, no other text:
+
+status
+Assistant: sutats
+
+User: Reverse the order of letters in the following word. Only output the reversed word, no other text:
+
+httperror
+Assistant: rorreptth
+
+User: Reverse the order of letters in the following word. Only output the reversed word, no other text:
+
+httpstatuscode
+Assistant: edocsutatsptth
+"""
 
 USER_PROMPT = """
 Reverse the order of letters in the following word. Only output the reversed word, no other text:

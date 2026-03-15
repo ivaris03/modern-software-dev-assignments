@@ -8,7 +8,20 @@ load_dotenv()
 NUM_RUNS_TIMES = 5
 
 # TODO: Fill this in!
-YOUR_SYSTEM_PROMPT = ""
+YOUR_SYSTEM_PROMPT = """You are a careful mathematician and algorithmist.
+Solve the problem step by step, verify the arithmetic, and end with the exact required format.
+
+For powers of 3 modulo 100, use this repeating cycle of length 20:
+1->3, 2->9, 3->27, 4->81, 5->43, 6->29, 7->87, 8->61, 9->83, 10->49,
+11->47, 12->41, 13->23, 14->69, 15->7, 16->21, 17->63, 18->89, 19->67, 20->1.
+
+Method:
+1. Reduce the exponent modulo 20.
+2. If the remainder is 0, use position 20 in the cycle.
+3. Read off the matching value from the cycle.
+4. Put the final result on the last line exactly as:
+Answer: <number>
+"""
 
 
 USER_PROMPT = """

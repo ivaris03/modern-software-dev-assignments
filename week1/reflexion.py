@@ -15,7 +15,21 @@ Keep the implementation minimal.
 """
 
 # TODO: Fill this in!
-YOUR_REFLEXION_PROMPT = ""
+YOUR_REFLEXION_PROMPT = """
+You are using the Reflexion technique to improve a failed Python solution.
+
+When given the previous implementation and unit-test feedback:
+1. Identify what assumptions in the previous code caused the failures.
+2. Infer the missing or incorrect validation rules from the feedback.
+3. Rewrite the function so it fixes those mistakes without breaking behavior that already worked.
+4. Prefer the smallest correct implementation rather than patching symptoms.
+
+Output requirements:
+- Output ONLY a single fenced Python code block.
+- Define exactly one function named is_valid_password(password: str) -> bool.
+- Do not include any prose or comments.
+- Return the full replacement function, not a diff.
+"""
 
 
 # Ground-truth test suite used to evaluate generated code
@@ -94,9 +108,29 @@ def generate_initial_function(system_prompt: str) -> str:
 def your_build_reflexion_context(prev_code: str, failures: List[str]) -> str:
     """TODO: Build the user message for the reflexion step using prev_code and failures.
 
-    Return a string that will be sent as the user content alongside the reflexion system prompt.
+    Return a structured reflexion prompt from the previous code and failing tests.
     """
-    return ""
+    failure_lines = [f"{idx}. {failure}" for idx, failure in enumerate(failures, start=1)]
+    if not failure_lines:
+        failure_lines = ["1. No explicit failures were provided."]
+
+    sections = [
+        "Previous implementation:",
+        "```python",
+        prev_code.strip(),
+        "```",
+        "",
+        "Observed test failures:",
+        *failure_lines,
+        "",
+        "Your task:",
+        "1. Reflect on why the previous implementation failed.",
+        "2. Infer the missing or incorrect password-validation rules from the feedback.",
+        "3. Return a complete corrected replacement.",
+        "",
+        "Output only a single fenced Python code block.",
+    ]
+    return "\n".join(sections)
 
 
 def apply_reflexion(

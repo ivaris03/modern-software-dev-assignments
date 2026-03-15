@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__MiniMax__understand_image",
+      "Bash(cd \"C:\\\\Users\\\\SolitudeOracle\\\\Desktop\\\\projects\\\\modern-software-dev-assignments\\\\week1\" && python self_consistency_prompting.py)"
+    ]
+  }
+}
