@@ -4,7 +4,6 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "app.db"
@@ -102,6 +101,16 @@ def list_action_items(note_id: Optional[int] = None) -> list[sqlite3.Row]:
                 (note_id,),
             )
         return list(cursor.fetchall())
+
+
+def get_action_item(action_item_id: int) -> Optional[sqlite3.Row]:
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT id, note_id, text, done, created_at FROM action_items WHERE id = ?",
+            (action_item_id,),
+        )
+        return cursor.fetchone()
 
 
 def mark_action_item_done(action_item_id: int, done: bool) -> None:

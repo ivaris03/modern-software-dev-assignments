@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
+import logging
 import os
 import re
-from typing import List
-import json
-from typing import Any
-from ollama import chat
+
 from dotenv import load_dotenv
+from ollama import chat
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -31,9 +33,9 @@ def _is_action_line(line: str) -> bool:
     return False
 
 
-def extract_action_items(text: str) -> List[str]:
+def extract_action_items(text: str) -> list[str]:
     lines = text.splitlines()
-    extracted: List[str] = []
+    extracted: list[str] = []
     for raw_line in lines:
         line = raw_line.strip()
         if not line:
@@ -56,7 +58,7 @@ def extract_action_items(text: str) -> List[str]:
                 extracted.append(s)
     # Deduplicate while preserving order
     seen: set[str] = set()
-    unique: List[str] = []
+    unique: list[str] = []
     for item in extracted:
         lowered = item.lower()
         if lowered in seen:
@@ -87,3 +89,39 @@ def _looks_imperative(sentence: str) -> bool:
         "investigate",
     }
     return first.lower() in imperative_starters
+
+
+def extract_action_items_llm(text: str) -> list[str]:
+    """Extract action items using LLM with structured output via Ollama."""
+    model = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
+
+    format_schema = {
+        "type": "array",
+        "items": {"type": "string"},
+    }
+
+    try:
+        response = chat(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an assistant that extracts action items from text. "
+                        "Return a JSON array of strings, where each string is an action item. "
+                        "Action items typically start with verbs like 'Set up', 'Write', 'Fix', 'Create', etc."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Extract all action items from this text:\n\n{text}",
+                },
+            ],
+            format=format_schema,
+            options={"temperature": 0},
+        )
+        items = json.loads(response.message.content)
+        return items
+    except Exception as e:
+        logger.warning(f"LLM extraction failed: {e}")
+        return []
