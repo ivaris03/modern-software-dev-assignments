@@ -33,6 +33,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.pytest_cache/
+.pytest_cache_local/
+pytest-cache-files-*/
 
 # IDE
 .vscode/
