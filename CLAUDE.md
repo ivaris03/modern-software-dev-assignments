@@ -16,14 +16,22 @@ This is the course assignment repository for **CS146S: The Modern Software Devel
    ```
 3. Install Poetry: `curl -sSL https://install.python-poetry.org | python -`
 4. Install dependencies: `poetry install --no-interaction`
+5. Install pre-commit hooks: `poetry run pre-commit install`
 
 ## Common Commands
 
 ```bash
-# Run the server (from project root or specific week directory)
+# Install dependencies (from repo root)
+poetry install --no-interaction
+poetry run pre-commit install
+
+# Run standalone week 1 scripts
+poetry run python week1/<filename>.py
+
+# Run the server (from week2 or week3)
 poetry run uvicorn week2.app.main:app --reload
 
-# Run tests
+# Run tests (weeks 2-3)
 poetry run pytest -q
 
 # Format code
@@ -31,14 +39,16 @@ poetry run black .
 poetry run ruff check . --fix
 ```
 
-For weeks 4-7 that have their own Makefile:
+For weeks 4-7 that have their own Makefile (run from within the weekN directory):
 ```bash
-make run        # Start the server with uvicorn
+make run        # Start the server with uvicorn (requires PYTHONPATH=.)
 make test       # Run pytest
 make format     # Run black and ruff
 make lint       # Run ruff only
 make seed       # Seed the database
 ```
+
+Note: Weeks 4-7 Makefiles require `PYTHONPATH=.` set explicitly (handled by the Makefile targets).
 
 ## Code Architecture
 
@@ -50,10 +60,10 @@ make seed       # Seed the database
 ### Weeks 2-7: Full-Stack Development
 - **Backend**: FastAPI + SQLAlchemy + SQLite
 - **Frontend**: Vanilla JS with simple HTML/CSS
-- Structure varies by week but generally follows:
+- **Weeks 2-3** structure:
   ```
   weekN/
-    backend/app/
+    app/
       main.py       # FastAPI app entry point
       db.py        # Database setup and models
       routers/     # API endpoint definitions
@@ -64,6 +74,11 @@ make seed       # Seed the database
       app.js
       styles.css
     tests/         # Pytest test files
+  ```
+- **Weeks 4-7** add a `backend/` prefix:
+  ```
+  weekN/backend/app/...
+  weekN/backend/tests/...
   ```
 
 ### Week 8: Multi-Stack AI-Accelerated Build
@@ -80,3 +95,11 @@ make seed       # Seed the database
 - **OpenAI** - LLM API client
 - **pytest** - Testing framework
 - **black/ruff** - Code formatting and linting
+
+## Coding Style
+
+- 4-space indentation, 100-character line limit
+- `snake_case` for files, functions, and variables
+- `PascalCase` for Pydantic and SQLAlchemy models
+- API routes in `routers/`, reusable logic in `services/`, persistence in `db.py`/`models.py`
+- Frontend assets: `index.html`, `app.js`, `styles.css` (vanilla JS, no framework)
