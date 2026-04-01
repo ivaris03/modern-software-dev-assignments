@@ -13,7 +13,7 @@ Name: **杨开泰** \
 SUNet ID: **20241140206** \
 Citations: **TODO**
 
-This assignment took me about **TODO** hours to do. 
+This assignment took me about **TODO** hours to do.
 
 
 ## YOUR RESPONSES

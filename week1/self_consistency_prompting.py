@@ -1,6 +1,6 @@
-import os
 import re
 from collections import Counter
+
 from dotenv import load_dotenv
 from ollama import chat
 

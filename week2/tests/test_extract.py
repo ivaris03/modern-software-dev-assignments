@@ -1,6 +1,5 @@
 import os
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from ..app.services.extract import extract_action_items, extract_action_items_llm
 
@@ -27,7 +26,9 @@ class TestExtractActionItemsLLM:
     def test_bullet_list_input(self, mock_chat):
         """Test LLM extraction with bullet list format."""
         mock_response = MagicMock()
-        mock_response.message.content = '["Set up database", "implement API endpoint", "Write tests"]'
+        mock_response.message.content = (
+            '["Set up database", "implement API endpoint", "Write tests"]'
+        )
         mock_chat.return_value = mock_response
 
         text = """
@@ -45,7 +46,9 @@ class TestExtractActionItemsLLM:
     def test_keyword_prefixed_lines(self, mock_chat):
         """Test LLM extraction with keyword-prefixed lines."""
         mock_response = MagicMock()
-        mock_response.message.content = '["TODO: Fix login bug", "ACTION: Update docs", "NEXT: Deploy to prod"]'
+        mock_response.message.content = (
+            '["TODO: Fix login bug", "ACTION: Update docs", "NEXT: Deploy to prod"]'
+        )
         mock_chat.return_value = mock_response
 
         text = """

@@ -44,5 +44,3 @@ def list_all_notes() -> list[NoteResponse]:
         )
         for r in rows
     ]
-
-

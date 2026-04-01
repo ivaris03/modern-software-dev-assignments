@@ -13,7 +13,7 @@ Name: **TODO** \
 SUNet ID: **TODO** \
 Citations: **TODO**
 
-This assignment took me about **TODO** hours to do. 
+This assignment took me about **TODO** hours to do.
 
 
 ## YOUR RESPONSES
@@ -383,6 +383,6 @@ Modified files:
 
 
 ## SUBMISSION INSTRUCTIONS
-1. Hit a `Command (⌘) + F` (or `Ctrl + F`) to find any remaining `TODO`s in this file. If no results are found, congratulations – you've completed all required fields. 
+1. Hit a `Command (⌘) + F` (or `Ctrl + F`) to find any remaining `TODO`s in this file. If no results are found, congratulations – you've completed all required fields.
 2. Make sure you have all changes pushed to your remote repository for grading.
-3. Submit via Gradescope. 
+3. Submit via Gradescope.

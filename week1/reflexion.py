@@ -1,6 +1,6 @@
-import os
 import re
 from typing import Callable, List, Tuple
+
 from dotenv import load_dotenv
 from ollama import chat
 
@@ -35,10 +35,10 @@ Output requirements:
 # Ground-truth test suite used to evaluate generated code
 SPECIALS = set("!@#$%^&*()-_")
 TEST_CASES: List[Tuple[str, bool]] = [
-    ("Password1!", True),       # valid
-    ("password1!", False),      # missing uppercase
-    ("Password!", False),       # missing digit
-    ("Password1", False),       # missing special
+    ("Password1!", True),  # valid
+    ("password1!", False),  # missing uppercase
+    ("Password!", False),  # missing digit
+    ("Password1", False),  # missing special
 ]
 
 
