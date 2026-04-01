@@ -60,3 +60,15 @@ def test_multiple_items_workflow(client):
     completed = [i for i in items if i["completed"]]
     assert len(completed) == 1
     assert completed[0]["description"] == "First"
+
+
+def test_create_action_item_empty_description(client):
+    payload = {"description": ""}
+    r = client.post("/action-items/", json=payload)
+    assert r.status_code == 422, r.text
+
+
+def test_create_action_item_missing_description(client):
+    payload = {}
+    r = client.post("/action-items/", json=payload)
+    assert r.status_code == 422, r.text
