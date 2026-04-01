@@ -258,19 +258,168 @@ The code-reviewer agent transforms code review from an optional, inconsistent pr
 
 
 ### *(Optional) Automation #3*
-*If you choose to build additional automations, feel free to detail them here!*
+
+**Automation: Subagent-Driven Development with Two-Stage Review**
 
 a. Design inspiration (e.g. cite the best-practices and/or sub-agents docs)
-> TODO
+> - Claude Code SubAgent best practices: specialized agents spawned to handle specific tasks autonomously with isolated context — https://code.claude.com/docs/en/best-practices
+> - Claude Code Skills framework: reusable, documented agent patterns that encode best practices for common workflows — https://code.claude.com/docs/en/skills
+> - The `superpowers:subagent-driven-development` skill: executes a plan by dispatching a fresh subagent per task, with two-stage review after each — spec compliance first, then code quality
+> - Core principle: **Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration**
 
 b. Design of each automation, including goals, inputs/outputs, steps
-> TODO
+
+**Goal**: Decompose a multi-task implementation plan into isolated, reviewable units — each dispatched to a fresh subagent with systematic two-stage review (spec compliance → code quality) before moving forward. This prevents context pollution, ensures every task is spec-compliant and well-coded, and surfaces issues early rather than at the end.
+
+**Core principle**: Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+**Inputs**:
+- A plan file (e.g., `docs/TASKS.md`) listing all tasks with full text and context
+- Task definitions extracted with complete description and scope
+- Coding standards (from `CLAUDE.md` conventions)
+- Reference spec/requirements for each task
+
+**Outputs**:
+- Per-task: implementation by subagent, self-review, commit
+- Per-task: spec compliance review report (pass/fail with findings)
+- Per-task: code quality review report (strengths, issues, approval)
+- Post-all-tasks: final code review of the entire implementation
+
+**Steps**:
+
+**Phase 1 — Setup**:
+1. Read the plan file once, extract all tasks with full text and context
+2. Create a task list for all items via `TaskCreate`
+3. Optionally set up an isolated git worktree
+
+**Phase 2 — Per-Task Execution** (repeat for each task):
+1. **Dispatch implementer subagent** with:
+   - Full task text and context (do NOT let subagent read the plan file)
+   - Coding standards and conventions
+   - Instruction to implement, write tests, self-review, and commit
+2. **Handle implementer questions** — answer clearly before letting them proceed
+3. **Dispatch spec compliance reviewer** with task spec and modified files
+4. **If spec reviewer finds issues** → implementer fixes → re-review until ✅
+5. **Dispatch code quality reviewer** with approved spec-compliant code
+6. **If code reviewer finds issues** → implementer fixes → re-review until ✅
+7. **Mark task complete** in the task list
+
+**Phase 3 — Completion**:
+1. Dispatch final code-reviewer subagent for the entire implementation
+2. Finalize the development branch
+
+**Model selection**:
+- Mechanical tasks (1-2 files, clear spec) → cheapest/fastest model
+- Integration/judgment tasks (multi-file) → standard model
+- Architecture/design/review tasks → most capable model
+
+**Two-stage review order is enforced**: spec compliance review MUST pass before code quality review begins.
 
 c. How to run it (exact commands), expected outputs, and rollback/safety notes
-> TODO
+
+**How to run**:
+
+```
+# Start a Claude Code session in the project directory
+cd week4
+claude
+
+# Invoke the subagent-driven-development skill via slash command
+/subagent-driven-development
+
+# When prompted, provide:
+# - The plan file to execute (e.g., docs/TASKS.md)
+# - The task(s) to implement
+
+# Example: execute a specific task from TASKS.md
+/subagent-driven-development
+Task: Implement Task 2 from docs/TASKS.md: "Add search endpoint for notes"
+Context: Backend is FastAPI + SQLAlchemy, frontend is vanilla JS,
+         follow CLAUDE.md conventions, run tests after implementation
+```
+
+**Prompt templates** (from the `superpowers:subagent-driven-development` skill):
+- `implementer-prompt.md` — dispatch implementation subagent
+- `spec-reviewer-prompt.md` — dispatch spec compliance reviewer
+- `code-quality-reviewer-prompt.md` — dispatch code quality reviewer
+
+**Expected output per task**:
+- Implementer: code changes, test results, self-review notes, git commit SHA
+- Spec reviewer: ✅ compliant OR ❌ issues found (with specific gaps listed)
+- Code reviewer: strengths, issues (if any), approved/not-approved
+- After all tasks: final review report, ready-to-merge status
+
+**Example spec reviewer dispatch prompt**:
+```
+Review the implementation of Task 3 against the spec:
+Spec: "Implement PUT /action-items/{id}/complete (already scaffolded),
+       extend test coverage"
+Files: backend/app/routers/action_items.py, backend/tests/test_action_items.py
+Confirm: endpoint exists, works correctly, tests added. Report spec compliance.
+```
+
+**Rollback/Safety notes**:
+- Work happens in an isolated git worktree — main branch stays clean
+- Each task is committed separately — easy to revert a specific task's changes
+- Reviewer subagents only read files and produce reports — never modify code
+- If an implementer reports BLOCKED or NEEDS_CONTEXT, assess the blocker before retrying:
+  - Context problem → provide more info, redispatch same model
+  - Reasoning problem → redispatch with more capable model
+  - Task too large → split into smaller pieces
+  - Plan wrong → escalate to human
+- Never skip review loops: issues found → implementer fixes → reviewer re-reviews
+- Spec compliance review MUST pass before code quality review starts
 
 d. Before vs. after (i.e. manual workflow vs. automated workflow)
-> TODO
+
+| Aspect | Before (Manual) | After (Subagent-Driven) |
+|--------|-----------------|------------------------|
+| Context isolation | Session accumulates history, causing confusion | Fresh subagent per task — no pollution |
+| Spec compliance | Often assumed, checked mentally at the end | Systematic spec reviewer per task |
+| Code quality | Reviewer tired by end of large implementation | Fresh quality reviewer per task |
+| Task tracking | Mental or scattered notes | Centralized task list with status |
+| Issues found | Late (debugging in production) | Early (at each task boundary) |
+| Parallel safety | Multiple implementers risk conflicts | Sequential dispatch avoids conflicts |
+| Rollback | Hard to isolate what broke | Per-task commits make targeted revert trivial |
+| Speed | Developer does everything alone | Subagents work in parallel on research vs. implementation |
+
+**Before**:
+1. Developer reads plan and starts implementing Task 1
+2. Context grows over the session — later tasks contaminated by earlier decisions
+3. Tests written after the fact, if at all
+4. Spec deviations accumulate silently
+5. Code quality review (if done) happens at the end, after fatigue sets in
+6. No systematic record of what was reviewed or why
+
+**After**:
+1. Controller reads plan, extracts all tasks, creates task list
+2. Implementer subagent dispatched per task with full context (no plan file reading)
+3. Implementer self-reviews, writes tests (TDD), commits
+4. Spec compliance reviewer validates against the spec
+5. Code quality reviewer validates against standards
+6. Review loops until approved
+7. Fresh subagent for next task — no context contamination
+8. Final review across the whole implementation
+9. Parallel: controller coordinates, subagents do focused work
 
 e. How you used the automation to enhance the starter application
-> TODO
+
+The Subagent-Driven Development skill was used to implement the TASKS.md plan systematically for the Week 4 starter application:
+
+**Task tracking**: All 7 tasks from `TASKS.md` were tracked via `TaskCreate`, making it visible which tasks were complete, in progress, or blocked.
+
+**Isolated execution**: Each task was dispatched to a fresh implementer subagent with complete context (task description, CLAUDE.md conventions, file paths). The subagent did not read the plan file — all necessary information was provided upfront, preventing the subagent from inheriting conflicting context from earlier tasks.
+
+**Two-stage review enforcement**: After each implementer subagent completed and self-reviewed:
+1. A spec compliance reviewer confirmed the implementation matched the task spec
+2. Only after spec compliance ✅ was a code quality reviewer dispatched
+
+For example, when implementing Task 2 (search endpoint):
+- Spec reviewer confirmed `GET /notes/search?q=...` existed and used SQLAlchemy filters
+- Code reviewer confirmed test coverage was adequate and no style violations existed
+
+**Review loops**: When the spec reviewer for Task 4 found that tag parsing (`#tag`) wasn't exposing extracted tags in the response, the implementer fixed it and the reviewer re-reviewed until approved — issues were caught at the task boundary, not in a final marathon review.
+
+**Final review**: After all 7 tasks, a final code-reviewer subagent validated the entire implementation against `TASKS.md`, producing a consolidated review report confirming all requirements were met.
+
+The net result: a systematically developed, reviewed-at-every-step application where every task boundary was a quality gate — not an afterthought.
