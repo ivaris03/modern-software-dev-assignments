@@ -22,16 +22,28 @@ async function loadActions() {
   const items = await fetchJSON('/action-items/');
   for (const a of items) {
     const li = document.createElement('li');
-    li.textContent = `${a.description} [${a.completed ? 'done' : 'open'}]`;
-    if (!a.completed) {
-      const btn = document.createElement('button');
-      btn.textContent = 'Complete';
-      btn.onclick = async () => {
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `action-${a.id}`;
+    checkbox.checked = a.completed;
+    checkbox.onchange = async () => {
+      if (checkbox.checked) {
         await fetchJSON(`/action-items/${a.id}/complete`, { method: 'PUT' });
-        loadActions();
-      };
-      li.appendChild(btn);
+      }
+      loadActions();
+    };
+
+    const label = document.createElement('label');
+    label.htmlFor = `action-${a.id}`;
+    label.textContent = a.description;
+    if (a.completed) {
+      label.style.textDecoration = 'line-through';
+      label.style.color = '#888';
     }
+
+    li.appendChild(checkbox);
+    li.appendChild(label);
     list.appendChild(li);
   }
 }
