@@ -8,15 +8,13 @@ Week 4 starter application — a "developer's command center" with FastAPI backe
 
 ## Common Commands
 
-**Windows requires Conda environment activation via cmd.exe:**
 ```bash
-# Run from week4 directory
-cmd.exe //c "conda activate cs146s && uvicorn backend.app.main:app --reload"
-cmd.exe //c "conda activate cs146s && set PYTHONPATH=. && pytest -q backend/tests/"
-cmd.exe //c "conda activate cs146s && black backend/app/ frontend/"
+make run        # Start server at http://127.0.0.1:8000
+make test       # Run all tests
+make format     # Format code with black
+make lint       # Run ruff check
+make seed       # Seed the database
 ```
-
-Note: Makefile targets don't work directly because `conda activate` must run inside `cmd.exe`. Use the commands above instead.
 
 ## Code Architecture
 
@@ -44,9 +42,13 @@ week4/
 - `GET /static/*` — serves static frontend assets
 - `POST /notes/` — create a note
 - `GET /notes/` — list all notes
+- `GET /notes/search/?q=...` — search notes (case-insensitive)
+- `PUT /notes/{id}` — update a note
+- `DELETE /notes/{id}` — delete a note
+- `POST /notes/{id}/extract` — extract action items from note
 - `POST /action-items/` — create an action item
 - `GET /action-items/` — list all action items
-- `PATCH /action-items/{id}` — update an action item
+- `PUT /action-items/{id}/complete` — mark action item as complete
 
 ## Database
 
@@ -56,7 +58,6 @@ week4/
 
 ## Testing
 
-Tests use a temporary SQLite database via fixture in `conftest.py`. Run individual test files with:
 ```bash
-cmd.exe //c "conda activate cs146s && set PYTHONPATH=. && pytest -q backend/tests/test_notes.py"
+make test       # Run all tests
 ```
