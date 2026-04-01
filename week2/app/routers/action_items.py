@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException
 
 from .. import db
@@ -13,7 +11,7 @@ router = APIRouter(prefix="/action-items", tags=["action-items"])
 
 @router.post("/extract")
 def extract(payload: ActionItemExtract) -> ExtractResponse:
-    note_id: Optional[int] = None
+    note_id: int | None = None
     if payload.save_note:
         note_id = db.insert_note(payload.text)
 
@@ -27,7 +25,7 @@ def extract(payload: ActionItemExtract) -> ExtractResponse:
 
 @router.post("/extract-llm")
 def extract_llm(payload: ActionItemExtract) -> ExtractResponse:
-    note_id: Optional[int] = None
+    note_id: int | None = None
     if payload.save_note:
         note_id = db.insert_note(payload.text)
 
@@ -40,7 +38,7 @@ def extract_llm(payload: ActionItemExtract) -> ExtractResponse:
 
 
 @router.get("")
-def list_all(note_id: Optional[int] = None) -> list[ActionItemResponse]:
+def list_all(note_id: int | None = None) -> list[ActionItemResponse]:
     rows = db.list_action_items(note_id=note_id)
     return [
         ActionItemResponse(
@@ -68,5 +66,3 @@ def mark_done(action_item_id: int, payload: MarkDoneRequest) -> ActionItemRespon
         done=payload.done,
         created_at=row["created_at"],
     )
-
-

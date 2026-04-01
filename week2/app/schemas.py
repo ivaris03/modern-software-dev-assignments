@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -28,12 +26,12 @@ class NoteResponse(BaseModel):
 
 class ActionItemResponse(BaseModel):
     id: int
-    note_id: Optional[int]
+    note_id: int | None
     text: str
     done: bool
     created_at: str
 
 
 class ExtractResponse(BaseModel):
-    note_id: Optional[int]
+    note_id: int | None
     items: list[dict]
