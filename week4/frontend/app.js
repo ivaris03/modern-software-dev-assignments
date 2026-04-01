@@ -4,10 +4,11 @@ async function fetchJSON(url, options) {
   return res.json();
 }
 
-async function loadNotes() {
+async function loadNotes(q) {
   const list = document.getElementById('notes');
   list.innerHTML = '';
-  const notes = await fetchJSON('/notes/');
+  const url = q ? `/notes/search/?q=${encodeURIComponent(q)}` : '/notes/';
+  const notes = await fetchJSON(url);
   for (const n of notes) {
     const li = document.createElement('li');
     li.textContent = `${n.title}: ${n.content}`;
@@ -59,6 +60,12 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     e.target.reset();
     loadActions();
+  });
+
+  document.getElementById('note-search-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = document.getElementById('note-search').value;
+    loadNotes(q);
   });
 
   loadNotes();

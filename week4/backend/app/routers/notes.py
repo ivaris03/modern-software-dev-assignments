@@ -32,7 +32,11 @@ def search_notes(q: Optional[str] = None, db: Session = Depends(get_db)) -> list
         rows = db.execute(select(Note)).scalars().all()
     else:
         rows = (
-            db.execute(select(Note).where((Note.title.contains(q)) | (Note.content.contains(q))))
+            db.execute(
+                select(Note).where(
+                    (Note.title.icontains(q)) | (Note.content.icontains(q))
+                )
+            )
             .scalars()
             .all()
         )

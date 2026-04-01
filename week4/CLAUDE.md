@@ -8,14 +8,15 @@ Week 4 starter application — a "developer's command center" with FastAPI backe
 
 ## Common Commands
 
+**Windows requires Conda environment activation via cmd.exe:**
 ```bash
 # Run from week4 directory
-make run        # Start FastAPI server (uvicorn backend.app.main:app --reload)
-make test       # Run pytest (PYTHONPATH=. pytest -q backend/tests)
-make format     # Run black and ruff --fix
-make lint       # Run ruff checks only
-make seed       # Initialize SQLite with seed data
+cmd.exe //c "conda activate cs146s && uvicorn backend.app.main:app --reload"
+cmd.exe //c "conda activate cs146s && set PYTHONPATH=. && pytest -q backend/tests/"
+cmd.exe //c "conda activate cs146s && black backend/app/ frontend/"
 ```
+
+Note: Makefile targets don't work directly because `conda activate` must run inside `cmd.exe`. Use the commands above instead.
 
 ## Code Architecture
 
@@ -57,5 +58,5 @@ week4/
 
 Tests use a temporary SQLite database via fixture in `conftest.py`. Run individual test files with:
 ```bash
-PYTHONPATH=. pytest -q backend/tests/test_notes.py
+cmd.exe //c "conda activate cs146s && set PYTHONPATH=. && pytest -q backend/tests/test_notes.py"
 ```
