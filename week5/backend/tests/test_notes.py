@@ -262,6 +262,13 @@ def test_update_note_not_found(client):
     assert r.json()["error"]["code"] == "NOT_FOUND"
 
 
+def test_get_note_not_found(client):
+    r = client.get("/notes/999")
+    assert r.status_code == 404, r.text
+    assert r.json()["ok"] is False
+    assert r.json()["error"]["code"] == "NOT_FOUND"
+
+
 def test_delete_note_success(client):
     client.post("/notes/", json={"title": "To Delete", "content": "Content"})
     r = client.delete("/notes/1")
