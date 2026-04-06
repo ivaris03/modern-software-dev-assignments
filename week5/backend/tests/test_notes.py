@@ -231,12 +231,20 @@ def test_update_note_validation_content_too_long(client):
 
 
 def test_update_note_success(client):
-    client.post("/notes/", json={"title": "Original", "content": "Content"})
-    r = client.put("/notes/1", json={"title": "Updated"})
+    r = client.post("/notes/", json={"title": "Original", "content": "Content"})
+    assert r.status_code == 201
+    note_id = r.json()["id"]
+
+    r = client.put(f"/notes/{note_id}", json={"title": "Updated"})
     assert r.status_code == 200, r.text
     data = r.json()
     assert data["title"] == "Updated"
     assert data["content"] == "Content"
+
+
+def test_update_note_not_found(client):
+    r = client.put("/notes/999", json={"title": "Updated"})
+    assert r.status_code == 404, r.text
 
 
 def test_delete_note_success(client):

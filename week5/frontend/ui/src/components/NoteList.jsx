@@ -48,8 +48,7 @@ export function NoteList({ notes, onDelete, onUpdate }) {
                 onKeyDown={(e) => handleKeyDown(e, note)}
                 autoFocus
               />
-              <input
-                type="text"
+              <textarea
                 className="edit-content-input"
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
