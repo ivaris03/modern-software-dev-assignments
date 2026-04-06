@@ -8,8 +8,20 @@ async function fetchJSON(url, options = {}) {
       ...options.headers,
     },
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  // Handle 204 No Content - no JSON body to parse
+  if (res.status === 204) {
+    return null;
+  }
+  const json = await res.json();
+  if (!res.ok) {
+    const msg = json?.error?.message || json?.error?.code || res.statusText;
+    throw new Error(msg);
+  }
+  // Unwrap envelope: { ok: true, data: {...} } → {...}
+  if (json && json.ok === true && json.data !== undefined) {
+    return json.data;
+  }
+  return json;
 }
 
 export const notesApi = {
