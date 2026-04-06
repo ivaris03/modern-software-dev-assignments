@@ -47,6 +47,12 @@ export const actionItemsApi = {
     if (params.completed !== undefined && params.completed !== null) {
       searchParams.set('completed', String(params.completed));
     }
+    if (params.page !== undefined && params.page !== null) {
+      searchParams.set('page', String(params.page));
+    }
+    if (params.page_size !== undefined && params.page_size !== null) {
+      searchParams.set('page_size', String(params.page_size));
+    }
     const query = searchParams.toString();
     return fetchJSON(`/action-items/${query ? `?${query}` : ''}`);
   },

@@ -19,6 +19,9 @@ function App() {
   const [actionFilter, setActionFilter] = useState(null);
   const [selectedActionIds, setSelectedActionIds] = useState([]);
   const [selectedTagId, setSelectedTagId] = useState(null);
+  const [actionPage, setActionPage] = useState(1);
+  const [actionPageSize] = useState(10);
+  const [actionTotalPages, setActionTotalPages] = useState(1);
 
   const loadNotes = async (search = '', pageNum = 1, sortOrder = 'created_desc', tagId = null) => {
     try {
@@ -33,10 +36,16 @@ function App() {
     }
   };
 
-  const loadActionItems = async (filter = null) => {
+  const loadActionItems = async (filter = null, pageNum = 1) => {
     try {
-      const data = await actionItemsApi.list(filter !== null ? { completed: filter } : {});
-      setActionItems(data);
+      const params = { page: pageNum, page_size: actionPageSize };
+      if (filter !== null) {
+        params.completed = filter;
+      }
+      const data = await actionItemsApi.list(params);
+      setActionItems(data.items);
+      setActionTotalPages(Math.ceil(data.total / actionPageSize));
+      setActionPage(pageNum);
       setError(null);
     } catch (err) {
       setError('Failed to load action items');
@@ -182,7 +191,12 @@ function App() {
   const handleActionFilterChange = (filter) => {
     setActionFilter(filter);
     setSelectedActionIds([]);
-    loadActionItems(filter);
+    setActionPage(1);
+    loadActionItems(filter, 1);
+  };
+
+  const handleActionPageChange = (newPage) => {
+    loadActionItems(actionFilter, newPage);
   };
 
   const handleToggleSelectActionItem = (id) => {
@@ -310,6 +324,25 @@ function App() {
           selectedIds={selectedActionIds}
           onToggleSelect={handleToggleSelectActionItem}
         />
+        {actionTotalPages > 1 && (
+          <div className="pagination">
+            <button
+              type="button"
+              onClick={() => handleActionPageChange(actionPage - 1)}
+              disabled={actionPage <= 1}
+            >
+              Previous
+            </button>
+            <span>Page {actionPage} of {actionTotalPages}</span>
+            <button
+              type="button"
+              onClick={() => handleActionPageChange(actionPage + 1)}
+              disabled={actionPage >= actionTotalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </section>
     </main>
   );
