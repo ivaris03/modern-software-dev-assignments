@@ -5,8 +5,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Note, Tag
-from ..schemas import NoteCreate, NoteRead, NoteUpdate, PaginatedNotesResponse, TagCreate, TagRead
+from ..models import ActionItem, Note, Tag
+from ..schemas import (
+    ExtractionResult,
+    NoteCreate,
+    NoteRead,
+    NoteUpdate,
+    PaginatedNotesResponse,
+    TagCreate,
+    TagRead,
+)
+from ..services.extract import extract_action_items, extract_hashtags
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -156,3 +165,47 @@ def detach_tag(note_id: int, tag_id: int, db: Session = Depends(get_db)) -> None
     if tag in note.tags:
         note.tags.remove(tag)
         db.flush()
+
+
+@router.post("/{note_id}/extract", response_model=ExtractionResult)
+def extract_from_note(
+    note_id: int,
+    apply: bool = False,
+    db: Session = Depends(get_db),
+) -> ExtractionResult:
+    """Extract hashtags and action items from a note's content.
+
+    Args:
+        note_id: ID of the note to extract from
+        apply: If True, persist new tags to the note and create action items
+
+    Returns:
+        ExtractionResult with extracted hashtags and action items
+    """
+    note = db.get(Note, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    hashtags = extract_hashtags(note.content)
+    action_items = extract_action_items(note.content)
+
+    if apply:
+        # Persist new tags
+        for tag_name in hashtags:
+            tag = db.execute(select(Tag).where(Tag.name == tag_name)).scalars().first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                db.add(tag)
+                db.flush()
+                db.refresh(tag)
+            if tag not in note.tags:
+                note.tags.append(tag)
+
+        # Create action items
+        for item_description in action_items:
+            action_item = ActionItem(description=item_description, completed=False)
+            db.add(action_item)
+
+        db.flush()
+
+    return ExtractionResult(hashtags=hashtags, action_items=action_items)

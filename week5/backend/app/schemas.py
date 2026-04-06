@@ -55,3 +55,8 @@ class ActionItemRead(BaseModel):
 
 class BulkCompleteRequest(BaseModel):
     ids: list[int]
+
+
+class ExtractionResult(BaseModel):
+    hashtags: list[str]
+    action_items: list[str]

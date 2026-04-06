@@ -258,3 +258,94 @@ def test_delete_note_success(client):
 def test_delete_note_not_found(client):
     r = client.delete("/notes/999")
     assert r.status_code == 404, r.text
+
+
+def test_extract_note_without_apply(client):
+    """Test extraction without persisting (apply=false)."""
+    # Create a note with hashtags and action items
+    r = client.post(
+        "/notes/",
+        json={
+            "title": "Test Note",
+            "content": "This has #python and #testing tags\n- [ ] Write code\n- [ ] Review PR",
+        },
+    )
+    assert r.status_code == 201
+    note_id = r.json()["id"]
+
+    # Extract without applying
+    r = client.post(f"/notes/{note_id}/extract")
+    assert r.status_code == 200
+    data = r.json()
+    assert "python" in data["hashtags"]
+    assert "testing" in data["hashtags"]
+    assert "Write code" in data["action_items"]
+    assert "Review PR" in data["action_items"]
+
+
+def test_extract_note_with_apply_creates_tags_and_action_items(client):
+    """Test extraction with apply=true creates tags and action items."""
+    # Create a note with hashtags and action items
+    r = client.post(
+        "/notes/",
+        json={
+            "title": "Test Note",
+            "content": "This has #python and #testing tags\n- [ ] Write code\n- [ ] Review PR",
+        },
+    )
+    assert r.status_code == 201
+    note_id = r.json()["id"]
+
+    # Extract with applying
+    r = client.post(f"/notes/{note_id}/extract", params={"apply": True})
+    assert r.status_code == 200
+    data = r.json()
+    assert "python" in data["hashtags"]
+    assert "testing" in data["hashtags"]
+    assert "Write code" in data["action_items"]
+    assert "Review PR" in data["action_items"]
+
+    # Verify note now has tags attached
+    r = client.get(f"/notes/{note_id}")
+    assert r.status_code == 200
+    note_data = r.json()
+    tag_names = [tag["name"] for tag in note_data["tags"]]
+    assert "python" in tag_names
+    assert "testing" in tag_names
+
+    # Verify action items were created
+    r = client.get("/action-items/")
+    assert r.status_code == 200
+    items = r.json()
+    descriptions = [item["description"] for item in items]
+    assert "Write code" in descriptions
+    assert "Review PR" in descriptions
+
+
+def test_extract_note_not_found(client):
+    """Test extraction on non-existent note."""
+    r = client.post("/notes/999/extract")
+    assert r.status_code == 404, r.text
+
+
+def test_extract_note_with_existing_tags(client):
+    """Test extraction does not duplicate tags already on the note."""
+    # Create a note with a tag already attached
+    r = client.post("/notes/", json={"title": "Test", "content": "Content with #existing tag"})
+    assert r.status_code == 201
+    note_id = r.json()["id"]
+
+    # Attach the existing tag
+    r = client.post(f"/notes/{note_id}/tags", json={"name": "existing"})
+    assert r.status_code == 200
+
+    # Extract with apply=true
+    r = client.post(f"/notes/{note_id}/extract", params={"apply": True})
+    assert r.status_code == 200
+
+    # Verify note still has only one tag (not duplicated)
+    r = client.get(f"/notes/{note_id}")
+    assert r.status_code == 200
+    note_data = r.json()
+    tag_names = [tag["name"] for tag in note_data["tags"]]
+    assert tag_names == ["existing"] or len(tag_names) == 1
