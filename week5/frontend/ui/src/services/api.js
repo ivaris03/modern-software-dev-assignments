@@ -16,7 +16,15 @@ export const notesApi = {
   list: () => fetchJSON('/notes/'),
   create: (data) => fetchJSON('/notes/', { method: 'POST', body: JSON.stringify(data) }),
   get: (id) => fetchJSON(`/notes/${id}`),
-  search: (q) => fetchJSON(`/notes/search/${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  search: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.q) searchParams.set('q', params.q);
+    if (params.page) searchParams.set('page', params.page);
+    if (params.page_size) searchParams.set('page_size', params.page_size);
+    if (params.sort) searchParams.set('sort', params.sort);
+    const query = searchParams.toString();
+    return fetchJSON(`/notes/search/${query ? `?${query}` : ''}`);
+  },
   update: (id, data) => fetchJSON(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) => fetchJSON(`/notes/${id}`, { method: 'DELETE' }),
 };

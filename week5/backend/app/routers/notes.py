@@ -1,12 +1,12 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import Note
-from ..schemas import NoteCreate, NoteRead, NoteUpdate
+from ..schemas import NoteCreate, NoteRead, NoteUpdate, PaginatedNotesResponse
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -26,17 +26,47 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)) -> NoteRead:
     return NoteRead.model_validate(note)
 
 
-@router.get("/search/", response_model=list[NoteRead])
-def search_notes(q: Optional[str] = None, db: Session = Depends(get_db)) -> list[NoteRead]:
-    if not q:
-        rows = db.execute(select(Note)).scalars().all()
-    else:
-        rows = (
-            db.execute(select(Note).where((Note.title.contains(q)) | (Note.content.contains(q))))
-            .scalars()
-            .all()
+@router.get("/search/", response_model=PaginatedNotesResponse)
+def search_notes(
+    q: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort: Optional[str] = "created_desc",
+    db: Session = Depends(get_db),
+) -> PaginatedNotesResponse:
+    # Build base query
+    query = select(Note)
+
+    # Apply case-insensitive search filter
+    if q:
+        search_pattern = f"%{q}%"
+        query = query.where(
+            (func.lower(Note.title).like(func.lower(search_pattern)))
+            | (func.lower(Note.content).like(func.lower(search_pattern)))
         )
-    return [NoteRead.model_validate(row) for row in rows]
+
+    # Get total count before pagination
+    count_query = select(func.count()).select_from(query.subquery())
+    total = db.execute(count_query).scalar() or 0
+
+    # Apply sorting
+    sort_mapping = {
+        "created_desc": Note.id.desc(),
+        "created_asc": Note.id.asc(),
+        "title_asc": Note.title.asc(),
+        "title_desc": Note.title.desc(),
+    }
+    order_clause = sort_mapping.get(sort, Note.id.desc())
+    query = query.order_by(order_clause)
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+
+    rows = db.execute(query).scalars().all()
+    items = [NoteRead.model_validate(row) for row in rows]
+
+    return PaginatedNotesResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/{note_id}", response_model=NoteRead)

@@ -10,11 +10,18 @@ function App() {
   const [notes, setNotes] = useState([]);
   const [actionItems, setActionItems] = useState([]);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [sort, setSort] = useState('created_desc');
 
-  const loadNotes = async () => {
+  const loadNotes = async (search = '', pageNum = 1, sortOrder = 'created_desc') => {
     try {
-      const data = await notesApi.list();
-      setNotes(data);
+      const data = await notesApi.search({ q: search, page: pageNum, page_size: pageSize, sort: sortOrder });
+      setNotes(data.items);
+      setTotal(data.total);
+      setPage(data.page);
       setError(null);
     } catch (err) {
       setError('Failed to load notes');
@@ -38,10 +45,24 @@ function App() {
     loadActionItems();
   }, []);
 
+  const handleSearch = () => {
+    setPage(1);
+    loadNotes(searchQuery, 1, sort);
+  };
+
+  const handleSortChange = (newSort) => {
+    setSort(newSort);
+    loadNotes(searchQuery, page, newSort);
+  };
+
+  const handlePageChange = (newPage) => {
+    loadNotes(searchQuery, newPage, sort);
+  };
+
   const handleAddNote = async ({ title, content }) => {
     try {
       await notesApi.create({ title, content });
-      await loadNotes();
+      loadNotes(searchQuery, page, sort);
     } catch (err) {
       setError('Failed to create note');
       console.error(err);
@@ -51,7 +72,7 @@ function App() {
   const handleDeleteNote = async (id) => {
     try {
       await notesApi.delete(id);
-      await loadNotes();
+      loadNotes(searchQuery, page, sort);
     } catch (err) {
       setError('Failed to delete note');
       console.error(err);
@@ -78,6 +99,8 @@ function App() {
     }
   };
 
+  const totalPages = Math.ceil(total / pageSize);
+
   return (
     <main>
       <h1>Modern Software Dev Starter</h1>
@@ -86,8 +109,46 @@ function App() {
 
       <section>
         <h2>Notes</h2>
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Search notes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          />
+          <button type="button" onClick={handleSearch}>Search</button>
+          <select value={sort} onChange={(e) => handleSortChange(e.target.value)}>
+            <option value="created_desc">Newest First</option>
+            <option value="created_asc">Oldest First</option>
+            <option value="title_asc">Title A-Z</option>
+            <option value="title_desc">Title Z-A</option>
+          </select>
+        </div>
         <NoteForm onSubmit={handleAddNote} />
+        <div className="result-count">
+          {total > 0 ? `Showing ${notes.length} of ${total} notes` : 'No notes found'}
+        </div>
         <NoteList notes={notes} onDelete={handleDeleteNote} />
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              type="button"
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page <= 1}
+            >
+              Previous
+            </button>
+            <span>Page {page} of {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </section>
 
       <section>
