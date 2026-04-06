@@ -1,9 +1,11 @@
 import { useState } from 'react';
 
-export function NoteList({ notes, onDelete, onUpdate }) {
+export function NoteList({ notes, onDelete, onUpdate, onAttachTag, onDetachTag }) {
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [newTagNoteId, setNewTagNoteId] = useState(null);
+  const [newTagName, setNewTagName] = useState('');
 
   if (!notes.length) {
     return <p className="empty-state">No notes yet</p>;
@@ -32,6 +34,28 @@ export function NoteList({ notes, onDelete, onUpdate }) {
     if (e.key === 'Escape') {
       handleCancelEdit();
     }
+  };
+
+  const handleStartAddTag = (noteId) => {
+    setNewTagNoteId(noteId);
+    setNewTagName('');
+  };
+
+  const handleCancelAddTag = () => {
+    setNewTagNoteId(null);
+    setNewTagName('');
+  };
+
+  const handleSubmitTag = (noteId) => {
+    if (newTagName.trim()) {
+      onAttachTag(noteId, newTagName.trim());
+    }
+    setNewTagNoteId(null);
+    setNewTagName('');
+  };
+
+  const handleDetachTag = (noteId, tagId) => {
+    onDetachTag(noteId, tagId);
   };
 
   return (
@@ -73,6 +97,45 @@ export function NoteList({ notes, onDelete, onUpdate }) {
             <>
               <span className="note-title">{note.title}</span>
               <span className="note-content">{note.content}</span>
+              {note.tags && note.tags.length > 0 && (
+                <div className="note-tags">
+                  {note.tags.map((tag) => (
+                    <span key={tag.id} className="tag-chip">
+                      {tag.name}
+                      <button
+                        type="button"
+                        className="tag-remove-btn"
+                        onClick={() => handleDetachTag(note.id, tag.id)}
+                      >
+                        x
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {newTagNoteId === note.id ? (
+                <div className="tag-input-form">
+                  <input
+                    type="text"
+                    className="tag-name-input"
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmitTag(note.id)}
+                    placeholder="Tag name"
+                    autoFocus
+                  />
+                  <button type="button" onClick={() => handleSubmitTag(note.id)}>Add</button>
+                  <button type="button" onClick={handleCancelAddTag}>Cancel</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="add-tag-btn"
+                  onClick={() => handleStartAddTag(note.id)}
+                >
+                  + Tag
+                </button>
+              )}
               <button
                 type="button"
                 className="edit-btn"

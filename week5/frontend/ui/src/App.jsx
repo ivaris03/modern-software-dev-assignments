@@ -3,12 +3,13 @@ import { NoteForm } from './components/NoteForm';
 import { NoteList } from './components/NoteList';
 import { ActionItemForm } from './components/ActionItemForm';
 import { ActionItemList } from './components/ActionItemList';
-import { notesApi, actionItemsApi } from './services/api';
+import { notesApi, actionItemsApi, tagsApi } from './services/api';
 import './App.css';
 
 function App() {
   const [notes, setNotes] = useState([]);
   const [actionItems, setActionItems] = useState([]);
+  const [tags, setTags] = useState([]);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -17,6 +18,7 @@ function App() {
   const [sort, setSort] = useState('created_desc');
   const [actionFilter, setActionFilter] = useState(null);
   const [selectedActionIds, setSelectedActionIds] = useState([]);
+  const [selectedTagId, setSelectedTagId] = useState(null);
 
   const loadNotes = async (search = '', pageNum = 1, sortOrder = 'created_desc') => {
     try {
@@ -42,9 +44,19 @@ function App() {
     }
   };
 
+  const loadTags = async () => {
+    try {
+      const data = await tagsApi.list();
+      setTags(data);
+    } catch (err) {
+      console.error('Failed to load tags', err);
+    }
+  };
+
   useEffect(() => {
     loadNotes();
     loadActionItems(actionFilter);
+    loadTags();
   }, []);
 
   const handleSearch = () => {
@@ -111,6 +123,31 @@ function App() {
     }
   };
 
+  const handleAttachTag = async (noteId, tagName) => {
+    try {
+      const updatedNote = await notesApi.attachTag(noteId, tagName);
+      setNotes(prev => prev.map(n =>
+        n.id === noteId ? updatedNote : n
+      ));
+      await loadTags();
+    } catch (err) {
+      setError('Failed to attach tag');
+      console.error(err);
+    }
+  };
+
+  const handleDetachTag = async (noteId, tagId) => {
+    try {
+      await notesApi.detachTag(noteId, tagId);
+      setNotes(prev => prev.map(n =>
+        n.id === noteId ? { ...n, tags: n.tags.filter(t => t.id !== tagId) } : n
+      ));
+    } catch (err) {
+      setError('Failed to detach tag');
+      console.error(err);
+    }
+  };
+
   const handleAddActionItem = async ({ description }) => {
     try {
       await actionItemsApi.create({ description });
@@ -154,6 +191,14 @@ function App() {
     );
   };
 
+  const handleTagFilterChange = (tagId) => {
+    setSelectedTagId(tagId);
+  };
+
+  const filteredNotes = selectedTagId
+    ? notes.filter(n => n.tags && n.tags.some(t => t.id === selectedTagId))
+    : notes;
+
   const totalPages = Math.ceil(total / pageSize);
 
   return (
@@ -180,11 +225,39 @@ function App() {
             <option value="title_desc">Title Z-A</option>
           </select>
         </div>
+        {tags.length > 0 && (
+          <div className="tag-filter">
+            <span>Filter by tag:</span>
+            <button
+              type="button"
+              className={selectedTagId === null ? 'active' : ''}
+              onClick={() => handleTagFilterChange(null)}
+            >
+              All
+            </button>
+            {tags.map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                className={selectedTagId === tag.id ? 'active' : ''}
+                onClick={() => handleTagFilterChange(tag.id)}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        )}
         <NoteForm onSubmit={handleAddNote} />
         <div className="result-count">
-          {total > 0 ? `Showing ${notes.length} of ${total} notes` : 'No notes found'}
+          {total > 0 ? `Showing ${filteredNotes.length} of ${total} notes` : 'No notes found'}
         </div>
-        <NoteList notes={notes} onDelete={handleDeleteNote} onUpdate={handleUpdateNote} />
+        <NoteList
+          notes={filteredNotes}
+          onDelete={handleDeleteNote}
+          onUpdate={handleUpdateNote}
+          onAttachTag={handleAttachTag}
+          onDetachTag={handleDetachTag}
+        />
         {totalPages > 1 && (
           <div className="pagination">
             <button

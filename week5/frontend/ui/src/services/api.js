@@ -27,6 +27,17 @@ export const notesApi = {
   },
   update: (id, data) => fetchJSON(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) => fetchJSON(`/notes/${id}`, { method: 'DELETE' }),
+  attachTag: (noteId, tagName) => fetchJSON(`/notes/${noteId}/tags`, {
+    method: 'POST',
+    body: JSON.stringify({ name: tagName }),
+  }),
+  detachTag: (noteId, tagId) => fetchJSON(`/notes/${noteId}/tags/${tagId}`, { method: 'DELETE' }),
+};
+
+export const tagsApi = {
+  list: () => fetchJSON('/tags/'),
+  create: (data) => fetchJSON('/tags/', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id) => fetchJSON(`/tags/${id}`, { method: 'DELETE' }),
 };
 
 export const actionItemsApi = {

@@ -5,7 +5,7 @@ from collections.abc import Generator
 import pytest
 from backend.app.db import get_db
 from backend.app.main import app
-from backend.app.models import Base
+from backend.app.models import ActionItem, Base, Note, Tag
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
