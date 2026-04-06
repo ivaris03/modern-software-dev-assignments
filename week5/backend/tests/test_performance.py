@@ -153,16 +153,24 @@ def test_notes_with_tags_large_dataset(client):
             "content": f"Content {i} #python #testing"
         })
 
-    # Attach tags to some notes
+    # Create the tag first and get its ID
+    tag_response = client.post("/tags/", json={"name": "important"})
+    # If tag already exists (409), fetch it from the list
+    if tag_response.status_code == 409:
+        tags = client.get("/tags/").json()["data"]
+        tag_id = next((t["id"] for t in tags if t["name"] == "important"), None)
+    else:
+        tag_id = tag_response.json()["data"]["id"]
+
+    # Attach the tag to some notes
     for i in range(0, 50, 5):  # Every 5th note
         note_id = i + 1
         client.post(f"/notes/{note_id}/tags", json={"name": "important"})
 
     # Search with tag filter
     start = time.time()
-    r = client.get("/notes/search/", params={"tag_id": 1})  # Assuming tag_id 1 = "important"
+    r = client.get("/notes/search/", params={"tag_id": tag_id})
     elapsed = time.time() - start
 
     assert r.status_code == 200
-    # Note: tag_id filter may return 0 since tags are created with different IDs
     assert elapsed < 1.0, f"Tag filter took {elapsed:.2f}s, should be < 1s"
