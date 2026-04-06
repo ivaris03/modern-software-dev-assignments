@@ -1,11 +1,13 @@
 import json
 import logging
+import os
 import uuid
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import HTTPException, RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -16,6 +18,16 @@ from .routers import notes as notes_router
 from .routers import tags as tags_router
 
 app = FastAPI(title="Modern Software Dev Starter (Week 5)")
+
+# CORS middleware for Vercel deployment
+_frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[_frontend_origin],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Ensure data dir exists
 Path("data").mkdir(parents=True, exist_ok=True)
