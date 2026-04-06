@@ -1,6 +1,31 @@
 from pydantic import BaseModel, Field
 
 
+# ---------------------------------------------------------------------------
+# Response envelope schemas
+# ---------------------------------------------------------------------------
+
+
+class ErrorDetail(BaseModel):
+    code: str
+    message: str
+
+
+class ErrorEnvelope(BaseModel):
+    ok: bool = False
+    error: ErrorDetail
+
+
+class SuccessEnvelope(BaseModel):
+    ok: bool = True
+    data: BaseModel | list | dict | str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Domain schemas
+# ---------------------------------------------------------------------------
+
+
 class TagCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 

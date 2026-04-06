@@ -1,7 +1,10 @@
+import json
 from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import HTTPException, RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import apply_seed_if_needed, engine
@@ -17,6 +20,86 @@ Path("data").mkdir(parents=True, exist_ok=True)
 
 # Mount static frontend assets
 app.mount("/static", StaticFiles(directory="frontend/dist"), name="static")
+
+
+# ---------------------------------------------------------------------------
+# Exception handlers — return consistent error envelopes
+# ---------------------------------------------------------------------------
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    code_map = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        422: "VALIDATION_ERROR",
+        500: "INTERNAL_ERROR",
+    }
+    code = code_map.get(exc.status_code, "ERROR")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"ok": False, "error": {"code": code, "message": exc.detail}},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    # Flatten validation errors into a single message
+    messages = []
+    for err in exc.errors():
+        loc = ".".join(str(l) for l in err["loc"])
+        messages.append(f"{loc}: {err['msg']}")
+    return JSONResponse(
+        status_code=422,
+        content={"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "; ".join(messages)}},
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(
+        status_code=500,
+        content={"ok": False, "error": {"code": "INTERNAL_ERROR", "message": "An unexpected error occurred"}},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Middleware — wrap successful responses in { "ok": true, "data": ... }
+# ---------------------------------------------------------------------------
+
+
+@app.middleware("http")
+async def envelope_middleware(request: Request, call_next: Any) -> Response:
+    response = await call_next(request)
+
+    # Only wrap 2xx responses
+    if not (200 <= response.status_code < 300):
+        return response
+
+    # Skip /static and root (HTML) responses
+    if request.url.path in ("/", "/static") or request.url.path.startswith("/static/"):
+        return response
+
+    # Read body, wrap it, return new response
+    body = b""
+    async for chunk in response.body_iterator:
+        body += chunk
+
+    if not body:
+        return JSONResponse(status_code=response.status_code, content={"ok": True, "data": None})
+
+    try:
+        parsed = json.loads(body)
+    except json.JSONDecodeError:
+        # Not JSON — return as-is (e.g., 204 No Content)
+        return response
+
+    return JSONResponse(status_code=response.status_code, content={"ok": True, "data": parsed})
 
 
 @app.on_event("startup")
