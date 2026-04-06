@@ -27,8 +27,5 @@
       "src": "/(.*)",
       "dest": "frontend/dist/index.html"
     }
-  ],
-  "env": {
-    "FRONTEND_ORIGIN": "@vercel_frontend_origin"
-  }
+  ]
 }
