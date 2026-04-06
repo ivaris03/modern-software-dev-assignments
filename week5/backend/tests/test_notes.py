@@ -134,3 +134,49 @@ def test_search_notes_empty_query_returns_all(client):
     assert r.status_code == 200
     data = r.json()
     assert data["total"] >= 1
+
+
+def test_search_notes_invalid_sort(client):
+    client.post("/notes/", json={"title": "Test", "content": "Hello world"})
+
+    r = client.get("/notes/search/", params={"sort": "title_ascending"})
+    assert r.status_code == 400
+    assert "Invalid sort value" in r.json()["detail"]
+
+    r = client.get("/notes/search/", params={"sort": "invalid"})
+    assert r.status_code == 400
+    assert "Invalid sort value" in r.json()["detail"]
+
+
+def test_search_notes_invalid_pagination(client):
+    client.post("/notes/", json={"title": "Test", "content": "Hello world"})
+
+    # page=0 should fail
+    r = client.get("/notes/search/", params={"page": 0})
+    assert r.status_code == 400
+    assert "page must be >= 1" in r.json()["detail"]
+
+    # page=-1 should fail
+    r = client.get("/notes/search/", params={"page": -1})
+    assert r.status_code == 400
+    assert "page must be >= 1" in r.json()["detail"]
+
+    # page_size=0 should fail
+    r = client.get("/notes/search/", params={"page_size": 0})
+    assert r.status_code == 400
+    assert "page_size must be > 0" in r.json()["detail"]
+
+    # page_size=-1 should fail
+    r = client.get("/notes/search/", params={"page_size": -1})
+    assert r.status_code == 400
+    assert "page_size must be > 0" in r.json()["detail"]
+
+    # page_size > 100 should fail
+    r = client.get("/notes/search/", params={"page_size": 101})
+    assert r.status_code == 400
+    assert "page_size must be <= 100" in r.json()["detail"]
+
+    # Very large page_size should fail
+    r = client.get("/notes/search/", params={"page_size": 999999})
+    assert r.status_code == 400
+    assert "page_size must be <= 100" in r.json()["detail"]

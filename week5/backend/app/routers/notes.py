@@ -34,6 +34,22 @@ def search_notes(
     sort: Optional[str] = "created_desc",
     db: Session = Depends(get_db),
 ) -> PaginatedNotesResponse:
+    # Validate pagination parameters
+    if page < 1:
+        raise HTTPException(status_code=400, detail="page must be >= 1")
+    if page_size < 1:
+        raise HTTPException(status_code=400, detail="page_size must be > 0")
+    if page_size > 100:
+        raise HTTPException(status_code=400, detail="page_size must be <= 100")
+
+    # Validate sort parameter
+    valid_sorts = {"created_desc", "created_asc", "title_asc", "title_desc"}
+    if sort is not None and sort not in valid_sorts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid sort value: '{sort}'. Must be one of: {', '.join(sorted(valid_sorts))}",
+        )
+
     # Build base query
     query = select(Note)
 
@@ -56,7 +72,7 @@ def search_notes(
         "title_asc": Note.title.asc(),
         "title_desc": Note.title.desc(),
     }
-    order_clause = sort_mapping.get(sort, Note.id.desc())
+    order_clause = sort_mapping[sort]
     query = query.order_by(order_clause)
 
     # Apply pagination
