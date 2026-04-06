@@ -85,7 +85,11 @@ function App() {
   const handleAddNote = async ({ title, content }) => {
     try {
       await notesApi.create({ title, content });
-      loadNotes(searchQuery, page, sort, selectedTagId);
+      await Promise.all([
+        loadNotes(searchQuery, page, sort, selectedTagId),
+        loadActionItems(actionFilter),
+        loadTags(),
+      ]);
     } catch (err) {
       setError('Failed to create note');
       console.error(err);
@@ -99,12 +103,14 @@ function App() {
 
     // Immediately remove from UI
     setNotes(prev => prev.filter(n => n.id !== id));
+    setTotal(prev => prev - 1);
 
     try {
       await notesApi.delete(id);
     } catch (err) {
       // Rollback on error: restore the note
       setNotes(prev => [backup, ...prev]);
+      setTotal(prev => prev + 1);
       setError('Failed to delete note');
       console.error(err);
     }

@@ -20,6 +20,30 @@ from ..services.extract import extract_action_items, extract_hashtags
 router = APIRouter(prefix="/notes", tags=["notes"])
 
 
+def _apply_extraction(note: Note, db: Session) -> None:
+    """Extract hashtags and action items from note content and persist them."""
+    hashtags = extract_hashtags(note.content)
+    action_items = extract_action_items(note.content)
+
+    # Persist new tags
+    for tag_name in hashtags:
+        tag = db.execute(select(Tag).where(Tag.name == tag_name)).scalars().first()
+        if not tag:
+            tag = Tag(name=tag_name)
+            db.add(tag)
+            db.flush()
+            db.refresh(tag)
+        if tag not in note.tags:
+            note.tags.append(tag)
+
+    # Create action items
+    for item_description in action_items:
+        action_item = ActionItem(description=item_description, completed=False)
+        db.add(action_item)
+
+    db.flush()
+
+
 @router.get("/", response_model=PaginatedNotesResponse)
 def list_notes(
     page: int = 1,
@@ -50,6 +74,7 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)) -> NoteRead:
     note = Note(title=payload.title, content=payload.content)
     db.add(note)
     db.flush()
+    _apply_extraction(note, db)
     db.refresh(note)
     return NoteRead.model_validate(note)
 
@@ -135,6 +160,7 @@ def update_note(note_id: int, payload: NoteUpdate, db: Session = Depends(get_db)
         note.title = payload.title
     if payload.content is not None:
         note.content = payload.content
+        _apply_extraction(note, db)
     db.flush()
     db.refresh(note)
     return NoteRead.model_validate(note)
@@ -209,22 +235,6 @@ def extract_from_note(
     action_items = extract_action_items(note.content)
 
     if apply:
-        # Persist new tags
-        for tag_name in hashtags:
-            tag = db.execute(select(Tag).where(Tag.name == tag_name)).scalars().first()
-            if not tag:
-                tag = Tag(name=tag_name)
-                db.add(tag)
-                db.flush()
-                db.refresh(tag)
-            if tag not in note.tags:
-                note.tags.append(tag)
-
-        # Create action items
-        for item_description in action_items:
-            action_item = ActionItem(description=item_description, completed=False)
-            db.add(action_item)
-
-        db.flush()
+        _apply_extraction(note, db)
 
     return ExtractionResult(hashtags=hashtags, action_items=action_items)

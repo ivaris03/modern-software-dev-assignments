@@ -5,26 +5,29 @@ def extract_action_items(text: str) -> list[str]:
     """Extract action items from text.
 
     Recognizes:
-    - GitHub-style task list items: - [ ] task text
+    - GitHub-style task list items: - [ ] task text (anywhere in a line)
     - Lines ending with !
     - Lines starting with TODO:
     """
     items = []
+    seen = set()
     for line in text.splitlines():
         line_stripped = line.strip()
         if not line_stripped:
             continue
-        # Check for GitHub-style task list: - [ ] task text
-        if line_stripped.startswith("- [ ] "):
-            task_text = line_stripped[6:].strip()
-            if task_text:
+        # Check for GitHub-style task list: - [ ] task text (anywhere in line)
+        for match in re.finditer(r"- \[ \] (.+?)(?=- \[ \]|$)", line_stripped):
+            task_text = match.group(1).strip()
+            if task_text and task_text not in seen:
+                seen.add(task_text)
                 items.append(task_text)
         # Check for legacy formats (ending with ! or starting with TODO:)
-        # Strip leading "- " prefix for the check and extraction
         else:
             stripped = line_stripped.strip("- ")
             if stripped.endswith("!") or stripped.lower().startswith("todo:"):
-                items.append(stripped)
+                if stripped not in seen:
+                    seen.add(stripped)
+                    items.append(stripped)
     return items
 
 
