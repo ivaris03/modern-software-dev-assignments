@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -52,6 +54,7 @@ class NoteRead(BaseModel):
     id: int
     title: str
     content: str
+    created_at: datetime
     tags: list[TagRead] = []
 
     class Config:

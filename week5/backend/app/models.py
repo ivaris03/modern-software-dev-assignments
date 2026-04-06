@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Table
+from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, Table
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -16,8 +18,9 @@ class Note(Base):
     __tablename__ = "notes"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), nullable=False)
+    title = Column(String(200), nullable=False, index=True)
     content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     tags = relationship("Tag", secondary=note_tags, back_populates="notes")
 
@@ -27,7 +30,7 @@ class ActionItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     description = Column(Text, nullable=False)
-    completed = Column(Boolean, default=False, nullable=False)
+    completed = Column(Boolean, default=False, nullable=False, index=True)
 
 
 class Tag(Base):

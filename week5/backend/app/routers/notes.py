@@ -100,8 +100,8 @@ def search_notes(
 
     # Apply sorting
     sort_mapping = {
-        "created_desc": Note.id.desc(),
-        "created_asc": Note.id.asc(),
+        "created_desc": Note.created_at.desc(),
+        "created_asc": Note.created_at.asc(),
         "title_asc": Note.title.asc(),
         "title_desc": Note.title.desc(),
     }
