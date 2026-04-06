@@ -180,3 +180,73 @@ def test_search_notes_invalid_pagination(client):
     r = client.get("/notes/search/", params={"page_size": 999999})
     assert r.status_code == 400
     assert "page_size must be <= 100" in r.json()["detail"]
+
+
+def test_create_note_validation_empty_title(client):
+    r = client.post("/notes/", json={"title": "", "content": "Some content"})
+    assert r.status_code == 422, r.text
+
+
+def test_create_note_validation_empty_content(client):
+    r = client.post("/notes/", json={"title": "Some title", "content": ""})
+    assert r.status_code == 422, r.text
+
+
+def test_create_note_validation_title_too_long(client):
+    long_title = "x" * 501
+    r = client.post("/notes/", json={"title": long_title, "content": "Some content"})
+    assert r.status_code == 422, r.text
+
+
+def test_create_note_validation_content_too_long(client):
+    long_content = "x" * 10001
+    r = client.post("/notes/", json={"title": "Some title", "content": long_content})
+    assert r.status_code == 422, r.text
+
+
+def test_update_note_validation_empty_title(client):
+    client.post("/notes/", json={"title": "Original", "content": "Content"})
+    r = client.put("/notes/1", json={"title": ""})
+    assert r.status_code == 422, r.text
+
+
+def test_update_note_validation_title_too_long(client):
+    client.post("/notes/", json={"title": "Original", "content": "Content"})
+    long_title = "x" * 501
+    r = client.put("/notes/1", json={"title": long_title})
+    assert r.status_code == 422, r.text
+
+
+def test_update_note_validation_empty_content(client):
+    client.post("/notes/", json={"title": "Original", "content": "Content"})
+    r = client.put("/notes/1", json={"content": ""})
+    assert r.status_code == 422, r.text
+
+
+def test_update_note_validation_content_too_long(client):
+    client.post("/notes/", json={"title": "Original", "content": "Content"})
+    long_content = "x" * 10001
+    r = client.put("/notes/1", json={"content": long_content})
+    assert r.status_code == 422, r.text
+
+
+def test_update_note_success(client):
+    client.post("/notes/", json={"title": "Original", "content": "Content"})
+    r = client.put("/notes/1", json={"title": "Updated"})
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["title"] == "Updated"
+    assert data["content"] == "Content"
+
+
+def test_delete_note_success(client):
+    client.post("/notes/", json={"title": "To Delete", "content": "Content"})
+    r = client.delete("/notes/1")
+    assert r.status_code == 204, r.text
+    r = client.get("/notes/1")
+    assert r.status_code == 404, r.text
+
+
+def test_delete_note_not_found(client):
+    r = client.delete("/notes/999")
+    assert r.status_code == 404, r.text

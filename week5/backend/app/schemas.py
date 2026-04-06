@@ -1,14 +1,14 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class NoteCreate(BaseModel):
-    title: str
-    content: str
+    title: str = Field(min_length=1, max_length=500)
+    content: str = Field(min_length=1, max_length=10000)
 
 
 class NoteUpdate(BaseModel):
-    title: str | None = None
-    content: str | None = None
+    title: str | None = Field(None, min_length=1, max_length=500)
+    content: str | None = Field(None, min_length=1, max_length=10000)
 
 
 class NoteRead(BaseModel):

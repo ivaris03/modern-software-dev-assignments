@@ -70,11 +70,41 @@ function App() {
   };
 
   const handleDeleteNote = async (id) => {
+    // Optimistic delete: store backup before removing
+    const backup = notes.find(n => n.id === id);
+    if (!backup) return;
+
+    // Immediately remove from UI
+    setNotes(prev => prev.filter(n => n.id !== id));
+
     try {
       await notesApi.delete(id);
-      loadNotes(searchQuery, page, sort);
     } catch (err) {
+      // Rollback on error: restore the note
+      setNotes(prev => [backup, ...prev]);
       setError('Failed to delete note');
+      console.error(err);
+    }
+  };
+
+  const handleUpdateNote = async (id, { title, content }) => {
+    // Optimistic update: store backup before changing
+    const backup = notes.find(n => n.id === id);
+    if (!backup) return;
+
+    // Immediately update in UI
+    setNotes(prev => prev.map(n =>
+      n.id === id ? { ...n, title, content } : n
+    ));
+
+    try {
+      await notesApi.update(id, { title, content });
+    } catch (err) {
+      // Rollback on error: restore original
+      setNotes(prev => prev.map(n =>
+        n.id === id ? backup : n
+      ));
+      setError('Failed to update note');
       console.error(err);
     }
   };
@@ -129,7 +159,7 @@ function App() {
         <div className="result-count">
           {total > 0 ? `Showing ${notes.length} of ${total} notes` : 'No notes found'}
         </div>
-        <NoteList notes={notes} onDelete={handleDeleteNote} />
+        <NoteList notes={notes} onDelete={handleDeleteNote} onUpdate={handleUpdateNote} />
         {totalPages > 1 && (
           <div className="pagination">
             <button
