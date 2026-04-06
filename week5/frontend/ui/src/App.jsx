@@ -20,9 +20,9 @@ function App() {
   const [selectedActionIds, setSelectedActionIds] = useState([]);
   const [selectedTagId, setSelectedTagId] = useState(null);
 
-  const loadNotes = async (search = '', pageNum = 1, sortOrder = 'created_desc') => {
+  const loadNotes = async (search = '', pageNum = 1, sortOrder = 'created_desc', tagId = null) => {
     try {
-      const data = await notesApi.search({ q: search, page: pageNum, page_size: pageSize, sort: sortOrder });
+      const data = await notesApi.search({ q: search, page: pageNum, page_size: pageSize, sort: sortOrder, tag_id: tagId });
       setNotes(data.items);
       setTotal(data.total);
       setPage(data.page);
@@ -61,22 +61,22 @@ function App() {
 
   const handleSearch = () => {
     setPage(1);
-    loadNotes(searchQuery, 1, sort);
+    loadNotes(searchQuery, 1, sort, selectedTagId);
   };
 
   const handleSortChange = (newSort) => {
     setSort(newSort);
-    loadNotes(searchQuery, page, newSort);
+    loadNotes(searchQuery, page, newSort, selectedTagId);
   };
 
   const handlePageChange = (newPage) => {
-    loadNotes(searchQuery, newPage, sort);
+    loadNotes(searchQuery, newPage, sort, selectedTagId);
   };
 
   const handleAddNote = async ({ title, content }) => {
     try {
       await notesApi.create({ title, content });
-      loadNotes(searchQuery, page, sort);
+      loadNotes(searchQuery, page, sort, selectedTagId);
     } catch (err) {
       setError('Failed to create note');
       console.error(err);
@@ -193,11 +193,9 @@ function App() {
 
   const handleTagFilterChange = (tagId) => {
     setSelectedTagId(tagId);
+    setPage(1);
+    loadNotes(searchQuery, 1, sort, tagId);
   };
-
-  const filteredNotes = selectedTagId
-    ? notes.filter(n => n.tags && n.tags.some(t => t.id === selectedTagId))
-    : notes;
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -249,10 +247,10 @@ function App() {
         )}
         <NoteForm onSubmit={handleAddNote} />
         <div className="result-count">
-          {total > 0 ? `Showing ${filteredNotes.length} of ${total} notes` : 'No notes found'}
+          {total > 0 ? `Showing ${notes.length} of ${total} notes` : 'No notes found'}
         </div>
         <NoteList
-          notes={filteredNotes}
+          notes={notes}
           onDelete={handleDeleteNote}
           onUpdate={handleUpdateNote}
           onAttachTag={handleAttachTag}

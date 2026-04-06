@@ -29,6 +29,7 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)) -> NoteRead:
 @router.get("/search/", response_model=PaginatedNotesResponse)
 def search_notes(
     q: Optional[str] = None,
+    tag_id: Optional[int] = None,
     page: int = 1,
     page_size: int = 10,
     sort: Optional[str] = "created_desc",
@@ -60,6 +61,10 @@ def search_notes(
             (func.lower(Note.title).like(func.lower(search_pattern)))
             | (func.lower(Note.content).like(func.lower(search_pattern)))
         )
+
+    # Apply tag filter
+    if tag_id is not None:
+        query = query.join(Note.tags).where(Tag.id == tag_id)
 
     # Get total count before pagination
     count_query = select(func.count()).select_from(query.subquery())

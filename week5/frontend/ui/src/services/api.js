@@ -19,6 +19,7 @@ export const notesApi = {
   search: (params = {}) => {
     const searchParams = new URLSearchParams();
     if (params.q) searchParams.set('q', params.q);
+    if (params.tag_id) searchParams.set('tag_id', params.tag_id);
     if (params.page) searchParams.set('page', params.page);
     if (params.page_size) searchParams.set('page_size', params.page_size);
     if (params.sort) searchParams.set('sort', params.sort);
