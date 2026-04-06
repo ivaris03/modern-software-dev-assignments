@@ -10,7 +10,7 @@ describe('ActionItemList', () => {
   it('renders empty state when no items', () => {
     render(<ActionItemList items={[]} onComplete={vi.fn()} />);
 
-    expect(screen.getByText('No action items yet')).toBeTruthy();
+    expect(screen.getByText('No action items yet')).toBeInTheDocument();
   });
 
   it('renders list of action items', () => {
@@ -20,10 +20,10 @@ describe('ActionItemList', () => {
     ];
     render(<ActionItemList items={items} onComplete={vi.fn()} />);
 
-    expect(screen.getByText('Item 1')).toBeTruthy();
-    expect(screen.getByText('Item 2')).toBeTruthy();
-    expect(screen.getByText('[open]')).toBeTruthy();
-    expect(screen.getByText('[done]')).toBeTruthy();
+    expect(screen.getByText('Item 1')).toBeInTheDocument();
+    expect(screen.getByText('Item 2')).toBeInTheDocument();
+    expect(screen.getByText('[open]')).toBeInTheDocument();
+    expect(screen.getByText('[done]')).toBeInTheDocument();
   });
 
   it('shows complete button only for incomplete items', () => {

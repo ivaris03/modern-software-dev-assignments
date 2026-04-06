@@ -13,8 +13,8 @@ describe('ActionItemForm', () => {
     const descInput = screen.getByPlaceholderText('Description');
     const button = screen.getByRole('button', { name: 'Add' });
 
-    expect(descInput).toBeTruthy();
-    expect(button).toBeTruthy();
+    expect(descInput).toBeInTheDocument();
+    expect(button).toBeInTheDocument();
   });
 
   it('calls onSubmit with form data when submitted', () => {

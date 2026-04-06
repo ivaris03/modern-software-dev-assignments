@@ -14,9 +14,9 @@ describe('NoteForm', () => {
     const contentInput = screen.getByPlaceholderText('Content');
     const button = screen.getByRole('button', { name: 'Add' });
 
-    expect(titleInput).toBeTruthy();
-    expect(contentInput).toBeTruthy();
-    expect(button).toBeTruthy();
+    expect(titleInput).toBeInTheDocument();
+    expect(contentInput).toBeInTheDocument();
+    expect(button).toBeInTheDocument();
   });
 
   it('calls onSubmit with form data when submitted', () => {

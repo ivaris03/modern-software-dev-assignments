@@ -30,7 +30,6 @@ def complete_item(item_id: int, db: Session = Depends(get_db)) -> ActionItemRead
     if not item:
         raise HTTPException(status_code=404, detail="Action item not found")
     item.completed = True
-    db.add(item)
     db.flush()
     db.refresh(item)
     return ActionItemRead.model_validate(item)

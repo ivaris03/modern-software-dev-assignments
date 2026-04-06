@@ -10,7 +10,7 @@ describe('NoteList', () => {
   it('renders empty state when no notes', () => {
     render(<NoteList notes={[]} onDelete={vi.fn()} />);
 
-    expect(screen.getByText('No notes yet')).toBeTruthy();
+    expect(screen.getByText('No notes yet')).toBeInTheDocument();
   });
 
   it('renders list of notes', () => {
@@ -20,10 +20,10 @@ describe('NoteList', () => {
     ];
     render(<NoteList notes={notes} onDelete={vi.fn()} />);
 
-    expect(screen.getByText('Note 1')).toBeTruthy();
-    expect(screen.getByText('Note 2')).toBeTruthy();
-    expect(screen.getByText('Content 1')).toBeTruthy();
-    expect(screen.getByText('Content 2')).toBeTruthy();
+    expect(screen.getByText('Note 1')).toBeInTheDocument();
+    expect(screen.getByText('Note 2')).toBeInTheDocument();
+    expect(screen.getByText('Content 1')).toBeInTheDocument();
+    expect(screen.getByText('Content 2')).toBeInTheDocument();
   });
 
   it('renders delete button for each note', () => {
