@@ -30,7 +30,18 @@ export const notesApi = {
 };
 
 export const actionItemsApi = {
-  list: () => fetchJSON('/action-items/'),
+  list: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.completed !== undefined && params.completed !== null) {
+      searchParams.set('completed', String(params.completed));
+    }
+    const query = searchParams.toString();
+    return fetchJSON(`/action-items/${query ? `?${query}` : ''}`);
+  },
   create: (data) => fetchJSON('/action-items/', { method: 'POST', body: JSON.stringify(data) }),
   complete: (id) => fetchJSON(`/action-items/${id}/complete`, { method: 'PUT' }),
+  bulkComplete: (ids) => fetchJSON('/action-items/bulk-complete', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  }),
 };

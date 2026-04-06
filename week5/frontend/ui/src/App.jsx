@@ -15,6 +15,8 @@ function App() {
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [sort, setSort] = useState('created_desc');
+  const [actionFilter, setActionFilter] = useState(null);
+  const [selectedActionIds, setSelectedActionIds] = useState([]);
 
   const loadNotes = async (search = '', pageNum = 1, sortOrder = 'created_desc') => {
     try {
@@ -29,9 +31,9 @@ function App() {
     }
   };
 
-  const loadActionItems = async () => {
+  const loadActionItems = async (filter = null) => {
     try {
-      const data = await actionItemsApi.list();
+      const data = await actionItemsApi.list(filter !== null ? { completed: filter } : {});
       setActionItems(data);
       setError(null);
     } catch (err) {
@@ -42,7 +44,7 @@ function App() {
 
   useEffect(() => {
     loadNotes();
-    loadActionItems();
+    loadActionItems(actionFilter);
   }, []);
 
   const handleSearch = () => {
@@ -122,11 +124,34 @@ function App() {
   const handleCompleteActionItem = async (id) => {
     try {
       await actionItemsApi.complete(id);
-      await loadActionItems();
+      await loadActionItems(actionFilter);
     } catch (err) {
       setError('Failed to complete action item');
       console.error(err);
     }
+  };
+
+  const handleBulkCompleteActionItems = async (ids) => {
+    try {
+      await actionItemsApi.bulkComplete(ids);
+      setSelectedActionIds([]);
+      await loadActionItems(actionFilter);
+    } catch (err) {
+      setError('Failed to bulk complete action items');
+      console.error(err);
+    }
+  };
+
+  const handleActionFilterChange = (filter) => {
+    setActionFilter(filter);
+    setSelectedActionIds([]);
+    loadActionItems(filter);
+  };
+
+  const handleToggleSelectActionItem = (id) => {
+    setSelectedActionIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -183,8 +208,37 @@ function App() {
 
       <section>
         <h2>Action Items</h2>
+        <div className="filter-toggles">
+          <button
+            type="button"
+            className={actionFilter === null ? 'active' : ''}
+            onClick={() => handleActionFilterChange(null)}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={actionFilter === false ? 'active' : ''}
+            onClick={() => handleActionFilterChange(false)}
+          >
+            Open
+          </button>
+          <button
+            type="button"
+            className={actionFilter === true ? 'active' : ''}
+            onClick={() => handleActionFilterChange(true)}
+          >
+            Completed
+          </button>
+        </div>
         <ActionItemForm onSubmit={handleAddActionItem} />
-        <ActionItemList items={actionItems} onComplete={handleCompleteActionItem} />
+        <ActionItemList
+          items={actionItems}
+          onComplete={handleCompleteActionItem}
+          onBulkComplete={handleBulkCompleteActionItems}
+          selectedIds={selectedActionIds}
+          onToggleSelect={handleToggleSelectActionItem}
+        />
       </section>
     </main>
   );

@@ -1,17 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import ActionItem
-from ..schemas import ActionItemCreate, ActionItemRead
+from ..schemas import ActionItemCreate, ActionItemRead, BulkCompleteRequest
 
 router = APIRouter(prefix="/action-items", tags=["action_items"])
 
 
 @router.get("/", response_model=list[ActionItemRead])
-def list_items(db: Session = Depends(get_db)) -> list[ActionItemRead]:
-    rows = db.execute(select(ActionItem)).scalars().all()
+def list_items(
+    completed: bool | None = Query(None, description="Filter by completion status"),
+    db: Session = Depends(get_db),
+) -> list[ActionItemRead]:
+    stmt = select(ActionItem)
+    if completed is not None:
+        stmt = stmt.where(ActionItem.completed == completed)
+    rows = db.execute(stmt).scalars().all()
     return [ActionItemRead.model_validate(row) for row in rows]
 
 
@@ -33,3 +39,22 @@ def complete_item(item_id: int, db: Session = Depends(get_db)) -> ActionItemRead
     db.flush()
     db.refresh(item)
     return ActionItemRead.model_validate(item)
+
+
+@router.post("/bulk-complete", response_model=list[ActionItemRead])
+def bulk_complete_items(
+    payload: BulkCompleteRequest, db: Session = Depends(get_db)
+) -> list[ActionItemRead]:
+    if not payload.ids:
+        return []
+    items = db.query(ActionItem).filter(ActionItem.id.in_(payload.ids)).all()
+    if len(items) != len(payload.ids):
+        found_ids = {item.id for item in items}
+        missing = [id for id in payload.ids if id not in found_ids]
+        raise HTTPException(status_code=404, detail=f"Action items not found: {missing}")
+    for item in items:
+        item.completed = True
+    db.flush()
+    for item in items:
+        db.refresh(item)
+    return [ActionItemRead.model_validate(item) for item in items]
