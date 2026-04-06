@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 from collections.abc import Generator
 
 import pytest
@@ -36,4 +37,12 @@ def client() -> Generator[TestClient, None, None]:
     with TestClient(app) as c:
         yield c
 
-    os.unlink(db_path)
+    # Dispose engine to close all connections before deleting on Windows
+    engine.dispose()
+    # Retry deletion on Windows in case of file locking
+    for _ in range(3):
+        try:
+            os.unlink(db_path)
+            break
+        except PermissionError:
+            time.sleep(0.1)

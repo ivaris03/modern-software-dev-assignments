@@ -210,3 +210,10 @@ def test_note_search_returns_tags(client):
     note = next((n for n in data["items"] if n["id"] == note_id), None)
     assert note is not None
     assert any(t["name"] == "searchable" for t in note["tags"])
+
+
+def test_create_tag_validation_empty_name(client):
+    """Test that creating a tag with empty name returns 422."""
+    r = client.post("/tags/", json={"name": ""})
+    assert r.status_code == 422, r.text
+    assert r.json()["ok"] is False

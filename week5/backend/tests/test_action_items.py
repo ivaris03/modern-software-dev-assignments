@@ -157,3 +157,18 @@ def test_list_action_items_pagination_custom_page_size(client):
     assert len(data["items"]) == 1
     assert data["total"] == 7
     assert data["page"] == 3
+
+
+def test_complete_item_not_found(client):
+    """Test that completing a non-existent action item returns 404."""
+    r = client.put("/action-items/999/complete")
+    assert r.status_code == 404, r.text
+    assert r.json()["ok"] is False
+    assert r.json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_create_action_item_validation_empty_description(client):
+    """Test that creating an action item with empty description returns 422."""
+    r = client.post("/action-items/", json={"description": ""})
+    assert r.status_code == 422, r.text
+    assert r.json()["ok"] is False
