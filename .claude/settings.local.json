@@ -45,7 +45,8 @@
       "Bash(PYTHONPATH=. poetry run pytest backend/tests/ -q)",
       "Bash(PYTHONPATH=. poetry run pytest backend/tests/test_notes.py::test_create_note_validation_empty_title -v)",
       "Bash(npm test:*)",
-      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__wait_for"
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__wait_for",
+      "Bash(git add:*)"
     ]
   }
 }
