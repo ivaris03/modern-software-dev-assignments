@@ -20,10 +20,13 @@ from .routers import tags as tags_router
 app = FastAPI(title="Modern Software Dev Starter (Week 5)")
 
 # CORS middleware for Vercel deployment
-_frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+# Supports comma-separated origins in FRONTEND_ORIGIN (e.g., "https://xxx.vercel.app,https://xxx-preview.vercel.app")
+# Falls back to ALLOW_ORIGINS env var for explicit multi-origin configuration
+_allow_origins_env = os.getenv("ALLOW_ORIGINS", os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"))
+_allow_origins = [o.strip() for o in _allow_origins_env.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[_frontend_origin],
+    allow_origins=_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

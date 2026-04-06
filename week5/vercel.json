@@ -6,8 +6,12 @@
       "use": "@vercel/python"
     },
     {
-      "src": "frontend/dist/**",
-      "use": "static"
+      "src": "frontend/ui/**",
+      "use": "@vercel/static",
+      "config": {
+        "buildCommand": "cd frontend/ui && npm run build",
+        "outputDirectory": "frontend/dist"
+      }
     }
   ],
   "routes": [
