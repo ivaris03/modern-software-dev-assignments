@@ -14,8 +14,8 @@ app = FastAPI(title="Modern Software Dev Starter (Week 5)")
 # Ensure data dir exists
 Path("data").mkdir(parents=True, exist_ok=True)
 
-# Mount static frontend
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
+# Mount static frontend assets
+app.mount("/static", StaticFiles(directory="frontend/dist"), name="static")
 
 
 @app.on_event("startup")
@@ -26,7 +26,7 @@ def startup_event() -> None:
 
 @app.get("/")
 async def root() -> FileResponse:
-    return FileResponse("frontend/index.html")
+    return FileResponse("frontend/dist/index.html")
 
 
 # Routers
