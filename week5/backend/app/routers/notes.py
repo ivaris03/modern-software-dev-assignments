@@ -20,10 +20,29 @@ from ..services.extract import extract_action_items, extract_hashtags
 router = APIRouter(prefix="/notes", tags=["notes"])
 
 
-@router.get("/", response_model=list[NoteRead])
-def list_notes(db: Session = Depends(get_db)) -> list[NoteRead]:
-    rows = db.execute(select(Note)).scalars().all()
-    return [NoteRead.model_validate(row) for row in rows]
+@router.get("/", response_model=PaginatedNotesResponse)
+def list_notes(
+    page: int = 1,
+    page_size: int = 10,
+    db: Session = Depends(get_db),
+) -> PaginatedNotesResponse:
+    # Validate pagination parameters
+    if page < 1:
+        raise HTTPException(status_code=400, detail="page must be >= 1")
+    if page_size < 1:
+        raise HTTPException(status_code=400, detail="page_size must be > 0")
+    if page_size > 100:
+        raise HTTPException(status_code=400, detail="page_size must be <= 100")
+
+    # Get total count
+    total = db.execute(select(func.count()).select_from(Note)).scalar() or 0
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    rows = db.execute(select(Note).offset(offset).limit(page_size)).scalars().all()
+    items = [NoteRead.model_validate(row) for row in rows]
+
+    return PaginatedNotesResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("/", response_model=NoteRead, status_code=201)

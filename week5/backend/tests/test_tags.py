@@ -154,7 +154,7 @@ def test_note_with_tags_in_list(client):
     # List notes and verify tags are included
     r = client.get("/notes/")
     assert r.status_code == 200
-    notes = r.json()["data"]
+    notes = r.json()["data"]["items"]
     note = next((n for n in notes if n["id"] == note_id), None)
     assert note is not None
     tag_names = [t["name"] for t in note["tags"]]
@@ -188,7 +188,7 @@ def test_tag_model_relation(client):
 
     # Verify tag appears in both notes' tag lists
     r = client.get("/notes/")
-    notes = r.json()["data"]
+    notes = r.json()["data"]["items"]
     note1 = next((n for n in notes if n["id"] == note1_id), None)
     note2 = next((n for n in notes if n["id"] == note2_id), None)
     assert any(t["id"] == tag_id for t in note1["tags"])

@@ -7,8 +7,12 @@ def test_create_and_list_notes(client):
 
     r = client.get("/notes/")
     assert r.status_code == 200
-    items = r.json()["data"]
-    assert len(items) >= 1
+    result = r.json()["data"]
+    assert "items" in result
+    assert "total" in result
+    assert "page" in result
+    assert "page_size" in result
+    assert len(result["items"]) >= 1
 
     r = client.get("/notes/search/")
     assert r.status_code == 200
@@ -329,7 +333,7 @@ def test_extract_note_with_apply_creates_tags_and_action_items(client):
     # Verify action items were created
     r = client.get("/action-items/")
     assert r.status_code == 200
-    items = r.json()["data"]
+    items = r.json()["data"]["items"]
     descriptions = [item["description"] for item in items]
     assert "Write code" in descriptions
     assert "Review PR" in descriptions
@@ -363,3 +367,57 @@ def test_extract_note_with_existing_tags(client):
     note_data = r.json()["data"]
     tag_names = [tag["name"] for tag in note_data["tags"]]
     assert tag_names == ["existing"] or len(tag_names) == 1
+
+
+def test_list_notes_pagination_empty_last_page(client):
+    """Test that requesting a page beyond available data returns empty items."""
+    # Create only 3 notes
+    for i in range(3):
+        client.post("/notes/", json={"title": f"Note {i}", "content": f"Content {i}"})
+
+    # Request page 99 (beyond available data)
+    r = client.get("/notes/", params={"page": 99, "page_size": 10})
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["items"] == []
+    assert data["total"] == 3
+    assert data["page"] == 99
+    assert data["page_size"] == 10
+
+
+def test_list_notes_pagination_too_large_page_size(client):
+    """Test that page_size > 100 returns an error."""
+    r = client.get("/notes/", params={"page": 1, "page_size": 101})
+    assert r.status_code == 400
+    assert "page_size must be <= 100" in r.json()["error"]["message"]
+
+
+def test_list_notes_pagination_invalid_page(client):
+    """Test that page < 1 returns an error."""
+    r = client.get("/notes/", params={"page": 0})
+    assert r.status_code == 400
+    assert "page must be >= 1" in r.json()["error"]["message"]
+
+
+def test_list_notes_pagination_custom_page_size(client):
+    """Test pagination with custom page_size."""
+    # Create 12 notes
+    for i in range(12):
+        client.post("/notes/", json={"title": f"Note {i}", "content": f"Content {i}"})
+
+    # Page 1 with page_size=5
+    r = client.get("/notes/", params={"page": 1, "page_size": 5})
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert len(data["items"]) == 5
+    assert data["total"] == 12
+    assert data["page"] == 1
+    assert data["page_size"] == 5
+
+    # Page 3 should have 2 items (5+5+2=12)
+    r = client.get("/notes/", params={"page": 3, "page_size": 5})
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert len(data["items"]) == 2
+    assert data["total"] == 12
+    assert data["page"] == 3

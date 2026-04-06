@@ -82,6 +82,13 @@ class BulkCompleteRequest(BaseModel):
     ids: list[int]
 
 
+class PaginatedActionItemsResponse(BaseModel):
+    items: list[ActionItemRead]
+    total: int
+    page: int
+    page_size: int
+
+
 class ExtractionResult(BaseModel):
     hashtags: list[str]
     action_items: list[str]

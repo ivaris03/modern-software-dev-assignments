@@ -4,10 +4,11 @@ async function fetchJSON(url, options) {
   return res.json();
 }
 
-async function loadNotes() {
+async function loadNotes(page = 1, pageSize = 10) {
   const list = document.getElementById('notes');
   list.innerHTML = '';
-  const notes = await fetchJSON('/notes/');
+  const data = await fetchJSON(`/notes/?page=${page}&page_size=${pageSize}`);
+  const notes = data.items;
   for (const n of notes) {
     const li = document.createElement('li');
     li.textContent = `${n.title}: ${n.content}`;
@@ -15,10 +16,11 @@ async function loadNotes() {
   }
 }
 
-async function loadActions() {
+async function loadActions(page = 1, pageSize = 10) {
   const list = document.getElementById('actions');
   list.innerHTML = '';
-  const items = await fetchJSON('/action-items/');
+  const data = await fetchJSON(`/action-items/?page=${page}&page_size=${pageSize}`);
+  const items = data.items;
   for (const a of items) {
     const li = document.createElement('li');
     li.textContent = `${a.description} [${a.completed ? 'done' : 'open'}]`;

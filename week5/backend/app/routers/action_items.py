@@ -1,24 +1,44 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import ActionItem
-from ..schemas import ActionItemCreate, ActionItemRead, BulkCompleteRequest
+from ..schemas import ActionItemCreate, ActionItemRead, BulkCompleteRequest, PaginatedActionItemsResponse
 
 router = APIRouter(prefix="/action-items", tags=["action_items"])
 
 
-@router.get("/", response_model=list[ActionItemRead])
+@router.get("/", response_model=PaginatedActionItemsResponse)
 def list_items(
     completed: bool | None = Query(None, description="Filter by completion status"),
+    page: int = 1,
+    page_size: int = 10,
     db: Session = Depends(get_db),
-) -> list[ActionItemRead]:
+) -> PaginatedActionItemsResponse:
+    # Validate pagination parameters
+    if page < 1:
+        raise HTTPException(status_code=400, detail="page must be >= 1")
+    if page_size < 1:
+        raise HTTPException(status_code=400, detail="page_size must be > 0")
+    if page_size > 100:
+        raise HTTPException(status_code=400, detail="page_size must be <= 100")
+
+    # Build base query
     stmt = select(ActionItem)
     if completed is not None:
         stmt = stmt.where(ActionItem.completed == completed)
-    rows = db.execute(stmt).scalars().all()
-    return [ActionItemRead.model_validate(row) for row in rows]
+
+    # Get total count
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = db.execute(count_stmt).scalar() or 0
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    rows = db.execute(stmt.offset(offset).limit(page_size)).scalars().all()
+    items = [ActionItemRead.model_validate(row) for row in rows]
+
+    return PaginatedActionItemsResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("/", response_model=ActionItemRead, status_code=201)
