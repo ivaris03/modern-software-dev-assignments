@@ -1,4 +1,6 @@
 import json
+import logging
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -62,9 +64,18 @@ async def validation_exception_handler(
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    request_id = str(uuid.uuid4())[:8]
+    logging.exception("Unhandled exception [request_id=%s]: %s", request_id, exc)
     return JSONResponse(
         status_code=500,
-        content={"ok": False, "error": {"code": "INTERNAL_ERROR", "message": "An unexpected error occurred"}},
+        content={
+            "ok": False,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred",
+                "request_id": request_id,
+            },
+        },
     )
 
 
