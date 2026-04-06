@@ -311,6 +311,7 @@ describe('App - Optimistic Updates', () => {
 
     // Note should show updated title immediately (optimistically)
     expect(screen.queryByText('Original Title')).not.toBeInTheDocument();
+    expect(screen.getByText('New Title')).toBeInTheDocument();
   });
 
   it('restores original note when update API call fails', async () => {
