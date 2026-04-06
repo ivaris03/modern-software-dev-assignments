@@ -151,6 +151,7 @@ function App() {
       setNotes(prev => prev.map(n =>
         n.id === noteId ? { ...n, tags: n.tags.filter(t => t.id !== tagId) } : n
       ));
+      await loadTags();
     } catch (err) {
       setError('Failed to detach tag');
       console.error(err);

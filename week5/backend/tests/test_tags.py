@@ -3,15 +3,20 @@ from backend.app.models import Note, Tag, note_tags
 
 def test_create_and_list_tags(client):
     """Test creating and listing tags."""
-    # Create a tag
-    payload = {"name": "important"}
-    r = client.post("/tags/", json=payload)
-    assert r.status_code == 201, r.text
-    data = r.json()["data"]
-    assert data["name"] == "important"
-    tag_id = data["id"]
+    # Create a note first
+    note_payload = {"title": "Test Note", "content": "Hello world"}
+    r = client.post("/notes/", json=note_payload)
+    assert r.status_code == 201
+    note_id = r.json()["data"]["id"]
 
-    # List tags
+    # Create a tag and attach it to the note
+    tag_payload = {"name": "important"}
+    r = client.post(f"/notes/{note_id}/tags", json=tag_payload)
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert any(t["name"] == "important" for t in data["tags"])
+
+    # List tags - should only show tags with associated notes
     r = client.get("/tags/")
     assert r.status_code == 200
     tags = r.json()["data"]

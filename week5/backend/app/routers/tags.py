@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Tag
+from ..models import Tag, note_tags
 from ..schemas import TagCreate, TagRead
 
 router = APIRouter(prefix="/tags", tags=["tags"])
@@ -11,7 +11,12 @@ router = APIRouter(prefix="/tags", tags=["tags"])
 
 @router.get("/", response_model=list[TagRead])
 def list_tags(db: Session = Depends(get_db)) -> list[TagRead]:
-    rows = db.execute(select(Tag)).scalars().all()
+    rows = db.execute(
+        select(Tag)
+        .join(note_tags, note_tags.c.tag_id == Tag.id)
+        .group_by(Tag.id)
+        .distinct()
+    ).scalars().all()
     return [TagRead.model_validate(row) for row in rows]
 
 
