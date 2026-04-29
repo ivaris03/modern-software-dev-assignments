@@ -3,7 +3,7 @@ import operator
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import asc, desc, select, text
+from sqlalchemy import asc, desc, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -106,38 +106,24 @@ def patch_note(note_id: int, payload: NotePatch, db: Session = Depends(get_db)) 
     return NoteRead.model_validate(note)
 
 
+@router.get("/unsafe-search", response_model=list[NoteRead])
+def unsafe_search(q: str, db: Session = Depends(get_db)) -> list[NoteRead]:
+    stmt = (
+        select(Note)
+        .where((Note.title.contains(q)) | (Note.content.contains(q)))
+        .order_by(desc(Note.created_at))
+        .limit(50)
+    )
+    rows = db.execute(stmt).scalars().all()
+    return [NoteRead.model_validate(row) for row in rows]
+
+
 @router.get("/{note_id}", response_model=NoteRead)
 def get_note(note_id: int, db: Session = Depends(get_db)) -> NoteRead:
     note = db.get(Note, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     return NoteRead.model_validate(note)
-
-
-@router.get("/unsafe-search", response_model=list[NoteRead])
-def unsafe_search(q: str, db: Session = Depends(get_db)) -> list[NoteRead]:
-    sql = text(
-        f"""
-        SELECT id, title, content, created_at, updated_at
-        FROM notes
-        WHERE title LIKE '%{q}%' OR content LIKE '%{q}%'
-        ORDER BY created_at DESC
-        LIMIT 50
-        """
-    )
-    rows = db.execute(sql).all()
-    results: list[NoteRead] = []
-    for r in rows:
-        results.append(
-            NoteRead(
-                id=r.id,
-                title=r.title,
-                content=r.content,
-                created_at=r.created_at,
-                updated_at=r.updated_at,
-            )
-        )
-    return results
 
 
 @router.get("/debug/hash-md5")

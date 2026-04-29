@@ -96,7 +96,7 @@ Verification:
 conda run -n cs146s python -m pytest -q backend\tests
 ```
 
-Result: `7 passed`.
+Result: `8 passed`.
 
 ## Fix #2
 a. File and line(s)
@@ -185,20 +185,105 @@ Verification:
 conda run -n cs146s python -m pytest -q backend\tests
 ```
 
-Result: `7 passed`.
+Result: `8 passed`.
 
 ## Fix #3
 a. File and line(s)
-> TODO
+`backend/app/routers/notes.py`, previously lines 71-80:
+
+```python
+sql = text(
+    f"""
+    SELECT id, title, content, created_at, updated_at
+    FROM notes
+    WHERE title LIKE '%{q}%' OR content LIKE '%{q}%'
+    ORDER BY created_at DESC
+    LIMIT 50
+    """
+)
+rows = db.execute(sql).all()
+```
 
 b. Rule/category Semgrep flagged
-> TODO
+SQL injection / unsafe SQL construction:
+
+- `python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text`
+- `python.fastapi.db.sqlalchemy-fastapi.sqlalchemy-fastapi`
+- `python.fastapi.db.generic-sql-fastapi.generic-sql-fastapi`
 
 c. Brief risk description
-> TODO
+The endpoint accepted the search query `q` from the request and inserted it
+directly into a SQL string with an f-string. Because the user-controlled value
+became part of the SQL syntax, an attacker could provide input such as
+`' OR 1=1 --` to change the `WHERE` clause and return rows that should not match
+the search. In a more permissive database configuration, this pattern can also
+lead to data modification or deletion attempts.
 
 d. Your change (short code diff or explanation, AI coding tool usage)
-> TODO
+I used Codex to replace the hand-written SQL string with a SQLAlchemy ORM query.
+The endpoint keeps the same route and response shape, but the search term is now
+handled as data by SQLAlchemy instead of being interpolated into raw SQL. I also
+moved the fixed `/notes/unsafe-search` route before `/notes/{note_id}` so FastAPI
+matches the literal route before the dynamic note-id route.
+
+Before:
+
+```python
+@router.get("/unsafe-search", response_model=list[NoteRead])
+def unsafe_search(q: str, db: Session = Depends(get_db)) -> list[NoteRead]:
+    sql = text(
+        f"""
+        SELECT id, title, content, created_at, updated_at
+        FROM notes
+        WHERE title LIKE '%{q}%' OR content LIKE '%{q}%'
+        ORDER BY created_at DESC
+        LIMIT 50
+        """
+    )
+    rows = db.execute(sql).all()
+    ...
+```
+
+After:
+
+```python
+@router.get("/unsafe-search", response_model=list[NoteRead])
+def unsafe_search(q: str, db: Session = Depends(get_db)) -> list[NoteRead]:
+    stmt = (
+        select(Note)
+        .where((Note.title.contains(q)) | (Note.content.contains(q)))
+        .order_by(desc(Note.created_at))
+        .limit(50)
+    )
+    rows = db.execute(stmt).scalars().all()
+    return [NoteRead.model_validate(row) for row in rows]
+```
+
+I also removed the now-unused `text` import from `backend/app/routers/notes.py`
+and added a regression test in `backend/tests/test_notes.py`:
+
+```python
+def test_unsafe_search_treats_sql_payload_as_plain_text(client):
+    client.post("/notes/", json={"title": "needle", "content": "safe content"})
+    client.post("/notes/", json={"title": "unrelated", "content": "ordinary content"})
+
+    r = client.get("/notes/unsafe-search", params={"q": "' OR 1=1 --"})
+
+    assert r.status_code == 200
+    assert r.json() == []
+```
 
 e. Why this mitigates the issue
-> TODO
+The new query is built with SQLAlchemy expressions, so the SQL structure is
+fixed by the application code and the request parameter is treated as a value.
+Attack strings like `' OR 1=1 --` are interpreted as literal search text instead
+of SQL syntax. This removes the injection path while preserving the intended
+title/content search behavior.
+
+Verification:
+
+```powershell
+conda run -n cs146s python -m pytest -q backend\tests
+```
+
+Result: `8 passed`.

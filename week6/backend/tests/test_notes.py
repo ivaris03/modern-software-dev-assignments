@@ -53,3 +53,13 @@ def test_debug_run_rejects_shell_injection(client):
 
     assert r.status_code == 400
     assert r.json()["detail"] == "Command not allowed"
+
+
+def test_unsafe_search_treats_sql_payload_as_plain_text(client):
+    client.post("/notes/", json={"title": "needle", "content": "safe content"})
+    client.post("/notes/", json={"title": "unrelated", "content": "ordinary content"})
+
+    r = client.get("/notes/unsafe-search", params={"q": "' OR 1=1 --"})
+
+    assert r.status_code == 200
+    assert r.json() == []
