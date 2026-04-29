@@ -1,5 +1,6 @@
 import ast
 import operator
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,6 +26,7 @@ _SAFE_OPERATORS = {
 }
 _MAX_EXPR_LENGTH = 100
 _MAX_ABS_VALUE = 1_000_000
+_READ_BASE_DIR = Path("data").resolve()
 
 
 def _safe_calculate(expr: str) -> int | float:
@@ -177,8 +179,14 @@ def debug_fetch(url: str) -> dict[str, str]:
 
 @router.get("/debug/read")
 def debug_read(path: str) -> dict[str, str]:
+    requested_path = (_READ_BASE_DIR / path).resolve()
+    if not requested_path.is_relative_to(_READ_BASE_DIR):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if not requested_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
     try:
-        content = open(path).read(1024)
-    except Exception as exc:  # noqa: BLE001
+        content = requested_path.read_text(encoding="utf-8")[:1024]
+    except UnicodeDecodeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     return {"snippet": content}
