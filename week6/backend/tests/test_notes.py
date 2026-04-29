@@ -21,3 +21,19 @@ def test_create_list_and_patch_notes(client):
     assert r.status_code == 200
     patched = r.json()
     assert patched["title"] == "Updated"
+
+
+def test_debug_eval_allows_arithmetic(client):
+    r = client.get("/notes/debug/eval", params={"expr": "1 + 2 * 3"})
+
+    assert r.status_code == 200
+    assert r.json() == {"result": "7"}
+
+
+def test_debug_eval_rejects_code_execution(client):
+    r = client.get(
+        "/notes/debug/eval",
+        params={"expr": '__import__("os").system("whoami")'},
+    )
+
+    assert r.status_code == 400

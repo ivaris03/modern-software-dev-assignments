@@ -1,3 +1,5 @@
+import ast
+import operator
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,6 +11,52 @@ from ..models import Note
 from ..schemas import NoteCreate, NotePatch, NoteRead
 
 router = APIRouter(prefix="/notes", tags=["notes"])
+
+_SAFE_OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+_MAX_EXPR_LENGTH = 100
+_MAX_ABS_VALUE = 1_000_000
+
+
+def _safe_calculate(expr: str) -> int | float:
+    if len(expr) > _MAX_EXPR_LENGTH:
+        raise ValueError("Expression is too long")
+
+    def evaluate(node: ast.AST) -> int | float:
+        if isinstance(node, ast.Expression):
+            return evaluate(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return node.value
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _SAFE_OPERATORS:
+            value = _SAFE_OPERATORS[type(node.op)](evaluate(node.operand))
+            if abs(value) > _MAX_ABS_VALUE:
+                raise ValueError("Expression result is too large")
+            return value
+        if isinstance(node, ast.BinOp) and type(node.op) in _SAFE_OPERATORS:
+            left = evaluate(node.left)
+            right = evaluate(node.right)
+            if isinstance(node.op, ast.Pow) and abs(right) > 10:
+                raise ValueError("Exponent is too large")
+            value = _SAFE_OPERATORS[type(node.op)](left, right)
+            if abs(value) > _MAX_ABS_VALUE:
+                raise ValueError("Expression result is too large")
+            return value
+        raise ValueError("Only numeric arithmetic expressions are allowed")
+
+    try:
+        parsed = ast.parse(expr, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError("Invalid arithmetic expression") from exc
+    return evaluate(parsed)
 
 
 @router.get("/", response_model=list[NoteRead])
@@ -101,7 +149,10 @@ def debug_hash_md5(q: str) -> dict[str, str]:
 
 @router.get("/debug/eval")
 def debug_eval(expr: str) -> dict[str, str]:
-    result = str(eval(expr))  # noqa: S307
+    try:
+        result = str(_safe_calculate(expr))
+    except (ArithmeticError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     return {"result": result}
 
 
