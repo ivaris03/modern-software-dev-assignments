@@ -14,7 +14,7 @@ Semgrep reported both code findings and supply-chain findings.
 
 The code findings included unsafe dynamic evaluation, unsafe shell command execution, SQL injection risk, arbitrary file reads/path traversal, dynamic URL fetching, and wildcard CORS. The supply-chain findings came from outdated pinned dependencies in `requirements.txt`, including old versions of Werkzeug, requests, Jinja2, PyYAML, and pydantic.
 
-I prioritized direct application-code vulnerabilities because they are reachable from FastAPI request parameters and have clear, targeted fixes. I treated the `stmt.offset(skip).limit(limit)` findings as noisy/lower risk because FastAPI parses those values as integers and SQLAlchemy builds the query rather than interpolating raw SQL strings. I did not upgrade dependencies in this pass because the assignment's pinned dependency file appears intentionally old for SCA scanning, and a dependency upgrade would need separate compatibility testing.
+I prioritized direct application-code vulnerabilities because they are reachable from FastAPI request parameters and have clear, targeted fixes. I treated the `stmt.offset(skip).limit(limit)` findings as noisy/lower risk because FastAPI parses those values as integers and SQLAlchemy builds the query rather than interpolating raw SQL strings. I also upgraded the vulnerable pinned dependencies in `requirements.txt` and ran the backend test suite to check compatibility.
 
 ## Fix 1: Replace `eval` With Safe Arithmetic Parsing
 
@@ -216,12 +216,53 @@ Regression tests:
 - `test_debug_read_rejects_path_traversal`
 - `test_debug_read_rejects_absolute_path_escape`
 
+## Fix 5: Upgrade Vulnerable Pinned Dependencies
+
+File: `requirements.txt`.
+
+Semgrep category:
+
+- Reachable and undetermined supply-chain findings for old versions of `Werkzeug`, `requests`, `Jinja2`, `PyYAML`, and `pydantic`
+
+Risk: The original dependency pins were several years old and matched multiple published CVEs. The highest-priority Semgrep supply-chain result was a reachable high-severity Werkzeug finding. Other outdated packages included `requests`, `PyYAML`, `Jinja2`, and `pydantic`.
+
+Before:
+
+```text
+fastapi==0.65.2
+uvicorn==0.11.8
+sqlalchemy==1.3.23
+pydantic==1.5.1
+requests==2.19.1
+PyYAML==5.1
+Jinja2==2.10.1
+MarkupSafe==1.1.0
+Werkzeug==0.14.1
+```
+
+After:
+
+```text
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+sqlalchemy==2.0.43
+pydantic==2.11.7
+requests==2.33.0
+PyYAML==6.0.2
+Jinja2==3.1.6
+MarkupSafe==3.0.2
+Werkzeug==3.1.6
+python-dotenv==1.1.1
+```
+
+Mitigation: I updated the pinned dependencies to modern versions that satisfy the fixed-version guidance from the Semgrep output. I kept the versions aligned with the current code style, which already uses SQLAlchemy 2 and Pydantic 2 APIs such as `model_validate` and `from_attributes`. I also added `python-dotenv` because `backend/app/db.py` imports `load_dotenv`, so a fresh install needs that dependency declared explicitly.
+
 ## Verification
 
-I ran the project tests from `week6/` using the local Conda environment:
+I installed the updated `requirements.txt` and ran the project tests from `week6/`:
 
 ```powershell
-conda run -n cs146s python -m pytest -q backend\tests
+$env:PYTHONPATH='.'; pytest -q backend/tests
 ```
 
 Result:
@@ -230,4 +271,6 @@ Result:
 11 passed
 ```
 
-I also checked `make test` and `make run` in an activated `cs146s` PowerShell session. On this Windows machine, both fail before pytest or uvicorn starts because Git Bash cannot create a signal pipe, so I used the Conda/Python pytest command above for verification.
+I also checked `make test`. On this Windows machine, it failed before pytest started because Git Bash could not create a signal pipe, so I used the PowerShell pytest command above for verification.
+
+I did not rerun `semgrep ci --subdir week6` after the dependency upgrade because that command uploads scan results to Semgrep Cloud. The local dependency pins have been updated, and the backend tests pass.
