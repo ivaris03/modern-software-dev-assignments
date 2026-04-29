@@ -1,37 +1,105 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
-This repository is organized by assignment week. `week1/` contains standalone Python exercises plus small data files in `week1/data/`. `week2/` introduces the app layout with `app/`, `frontend/`, and `tests/`. From `week4/` through `week7/`, each week follows a consistent full-stack pattern: `backend/app/` for FastAPI code, `backend/tests/` for pytest suites, `frontend/` for static assets, `data/seed.sql` for SQLite seed data, and `docs/` for task notes. Root files such as `pyproject.toml` and `poetry.lock` define shared dependencies and tool settings.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
-## Build, Test, and Development Commands
-Install shared dependencies once from the repository root:
+## Project Overview
+
+This is the course assignment repository for **CS146S: The Modern Software Developer** at Stanford University (Fall 2025). The repository contains weekly assignments covering various modern software development topics, from LLM prompting techniques to full-stack web development.
+
+## Environment Setup
+
+1. Install Anaconda (Python 3.12)
+2. Create and activate a Conda environment:
+   ```bash
+   conda create -n cs146s python=3.12 -y
+   conda activate cs146s
+   ```
+3. Install Poetry: `curl -sSL https://install.python-poetry.org | python -`
+4. Install dependencies: `poetry install --no-interaction`
+5. Install pre-commit hooks: `poetry run pre-commit install`
+
+## Common Commands
 
 ```bash
+# Install dependencies (from repo root)
 poetry install --no-interaction
 poetry run pre-commit install
+
+# Run standalone week 1 scripts
+poetry run python week1/<filename>.py
+
+# Run the server (from week2 or week3)
+poetry run uvicorn week2.app.main:app --reload
+
+# Run tests (weeks 2-3)
+poetry run pytest -q
+
+# Format code
+poetry run black .
+poetry run ruff check . --fix
 ```
 
-Run standalone week 1 scripts directly, for example:
-
+For weeks 4-7 that have their own Makefile (run from within the weekN directory):
 ```bash
-poetry run python week1/rag.py
+make run        # Start the server with uvicorn (requires PYTHONPATH=.)
+make test       # Run pytest
+make format     # Run black and ruff
+make lint       # Run ruff only
+make seed       # Seed the database
 ```
 
-For app-based weeks, work inside the target folder, for example `week7/`:
+Note: Weeks 4-7 Makefiles require `PYTHONPATH=.` set explicitly (handled by the Makefile targets).
 
-```bash
-make run    # start FastAPI with reload
-make test   # run backend pytest suite
-make format # run black and ruff --fix
-make lint   # run ruff checks only
-make seed   # initialize SQLite seed data
-```
+## Code Architecture
 
-## Coding Style & Naming Conventions
-Use 4-space indentation and keep Python lines within 100 characters, matching the root Black and Ruff configuration. Prefer `snake_case` for files, functions, and variables, and `PascalCase` for Pydantic or SQLAlchemy models. Keep API routes in `routers/`, reusable logic in `services/`, and persistence/schema code in `db.py`, `models.py`, and `schemas.py`. Frontend assets stay simple and framework-free: `index.html`, `app.js`, and `styles.css`.
+### Week 1: Prompting Techniques
+- Contains 6 Python files demonstrating different LLM prompting methods: `k_shot_prompting.py`, `chain_of_thought.py`, `tool_calling.py`, `self_consistency_prompting.py`, `rag.py`, `reflexion.py`
+- Uses **Ollama** for local LLM inference (models: `mistral-nemo:12b`, `llama3.1:8b`)
+- Run individual files with: `poetry run python week1/<filename>.py`
 
-## Testing Guidelines
-Pytest is the standard test runner. Name test files `test_*.py` and mirror the feature under test, such as `test_notes.py` or `test_action_items.py`. Use `poetry run pytest week2/tests -q` for earlier weeks, or `cd week7 && make test` for the later backend template. Any change to routes, extraction logic, database behavior, or schemas should include matching test updates.
+### Weeks 2-7: Full-Stack Development
+- **Backend**: FastAPI + SQLAlchemy + SQLite
+- **Frontend**: Vanilla JS with simple HTML/CSS
+- **Weeks 2-3** structure:
+  ```
+  weekN/
+    app/
+      main.py       # FastAPI app entry point
+      db.py        # Database setup and models
+      routers/     # API endpoint definitions
+      services/    # Business logic (e.g., extract.py)
+      schemas.py   # Pydantic schemas
+    frontend/
+      index.html
+      app.js
+      styles.css
+    tests/         # Pytest test files
+  ```
+- **Weeks 4-7** add a `backend/` prefix:
+  ```
+  weekN/backend/app/...
+  weekN/backend/tests/...
+  ```
 
-## Commit & Pull Request Guidelines
-Recent commits use short, direct subjects such as `week7`, `update quickstart`, and `edit assignment.md`. Keep commit titles concise, imperative, and, when useful, scoped by week. Pull requests should identify the affected week(s), summarize user-visible or API-visible changes, list the commands run for validation, and include screenshots only when frontend behavior changes.
+### Week 8: Multi-Stack AI-Accelerated Build
+- Three separate project folders with different technology stacks
+- At least one built with **bolt.new** (AI app generator)
+- At least one uses a non-JavaScript language (e.g., Django, Ruby on Rails)
+
+## Key Dependencies
+
+- **FastAPI** - Web framework
+- **SQLAlchemy** - ORM
+- **Pydantic** - Data validation
+- **Ollama** - Local LLM runtime
+- **OpenAI** - LLM API client
+- **pytest** - Testing framework
+- **black/ruff** - Code formatting and linting
+
+## Coding Style
+
+- 4-space indentation, 100-character line limit
+- `snake_case` for files, functions, and variables
+- `PascalCase` for Pydantic and SQLAlchemy models
+- API routes in `routers/`, reusable logic in `services/`, persistence in `db.py`/`models.py`
+- Frontend assets: `index.html`, `app.js`, `styles.css` (vanilla JS, no framework)
