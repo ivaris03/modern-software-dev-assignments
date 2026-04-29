@@ -1,61 +1,31 @@
 # Week 6 Write-up
-Tip: To preview this markdown file
-- On Mac, press `Command (⌘) + Shift + V`
-- On Windows/Linux, press `Ctrl + Shift + V`
-
-## Instructions
-
-Fill out all of the `TODO`s in this file.
 
 ## Submission Details
 
-Name: **TODO** \
-SUNet ID: **TODO** \
-Citations: **TODO**
+Name: **TODO**
+SUNet ID: **TODO**
+Citations: Semgrep CLI output from `semgrep ci --subdir week6`; Semgrep rule detail links shown in the scan output.
 
 This assignment took me about **TODO** hours to do.
 
+## Brief Findings Overview
 
-## Brief findings overview
-Semgrep reported both code and supply-chain findings. The code findings included
-an unsafe debug endpoint that evaluated user-controlled input with `eval`, an
-unsafe shell command endpoint, unsafe SQL string construction, dynamic URL/file
-access, and wildcard CORS. The supply-chain findings came from outdated pinned
-dependencies in `requirements.txt`, including old versions of Werkzeug,
-requests, Jinja2, PyYAML, and pydantic.
+Semgrep reported both code findings and supply-chain findings.
 
-For these fixes, I prioritized the `eval(expr)` finding and the `shell=True`
-subprocess finding because both can allow direct code or command execution from
-request parameters. I treated some other findings, such as
-`offset(skip).limit(limit)`, as lower priority/noisier because FastAPI parses
-those values as integers and SQLAlchemy builds the query rather than interpolating
-raw SQL strings.
+The code findings included unsafe dynamic evaluation, unsafe shell command execution, SQL injection risk, arbitrary file reads/path traversal, dynamic URL fetching, and wildcard CORS. The supply-chain findings came from outdated pinned dependencies in `requirements.txt`, including old versions of Werkzeug, requests, Jinja2, PyYAML, and pydantic.
 
-## Fix #1
-a. File and line(s)
-`backend/app/routers/notes.py`, previously line 104:
+I prioritized direct application-code vulnerabilities because they are reachable from FastAPI request parameters and have clear, targeted fixes. I treated the `stmt.offset(skip).limit(limit)` findings as noisy/lower risk because FastAPI parses those values as integers and SQLAlchemy builds the query rather than interpolating raw SQL strings. I did not upgrade dependencies in this pass because the assignment's pinned dependency file appears intentionally old for SCA scanning, and a dependency upgrade would need separate compatibility testing.
 
-```python
-result = str(eval(expr))  # noqa: S307
-```
+## Fix 1: Replace `eval` With Safe Arithmetic Parsing
 
-b. Rule/category Semgrep flagged
-Code injection / unsafe dynamic evaluation:
+File and lines: `backend/app/routers/notes.py`, around `debug_eval`.
+
+Semgrep category:
 
 - `python.fastapi.code.tainted-code-stdlib-fastapi.tainted-code-stdlib-fastapi`
 - `python.lang.security.audit.eval-detected.eval-detected`
 
-c. Brief risk description
-The endpoint accepted `expr` from the request query string and passed it directly
-to Python `eval`. That means a request such as
-`/notes/debug/eval?expr=__import__("os").system("whoami")` could execute Python
-code or operating system commands on the server.
-
-d. Your change (short code diff or explanation, AI coding tool usage)
-I used Codex to replace direct `eval` with a small allowlisted arithmetic
-evaluator based on Python's `ast` module. The endpoint still supports the intended
-debug calculator behavior, such as `1 + 2 * 3`, but rejects function calls,
-imports, attribute access, names, and other code-like syntax.
+Risk: The endpoint accepted `expr` from the query string and evaluated it with Python `eval`. A malicious request could execute Python code on the server instead of only evaluating a simple expression.
 
 Before:
 
@@ -78,53 +48,23 @@ def debug_eval(expr: str) -> dict[str, str]:
     return {"result": result}
 ```
 
-I also added tests in `backend/tests/test_notes.py` to confirm that arithmetic is
-accepted and a code execution payload is rejected. While running the tests on
-Windows, I fixed the test fixture in `backend/tests/conftest.py` by disposing the
-SQLAlchemy engine before deleting the temporary SQLite file.
+Mitigation: I used Codex to replace `eval` with an AST-based arithmetic evaluator. The helper only allows numeric constants and specific arithmetic operators. Function calls, imports, names, attributes, and other code-like syntax are rejected before anything can execute.
 
-e. Why this mitigates the issue
-The new implementation parses the input into an AST and recursively evaluates
-only explicitly allowed numeric nodes and operators. Anything outside that
-allowlist raises an error before it can execute. Because the code no longer
-passes user input to `eval`, user-controlled strings are treated as data instead
-of executable Python code.
+Regression tests:
 
-Verification:
+- `test_debug_eval_allows_arithmetic`
+- `test_debug_eval_rejects_code_execution`
 
-```powershell
-conda run -n cs146s python -m pytest -q backend\tests
-```
+## Fix 2: Replace Shell Execution With a Command Allowlist
 
-Result: `8 passed`.
+File and lines: `backend/app/routers/notes.py`, around `debug_run`.
 
-## Fix #2
-a. File and line(s)
-`backend/app/routers/notes.py`, previously line 163:
-
-```python
-completed = subprocess.run(cmd, shell=True, capture_output=True, text=True)  # noqa: S602,S603
-```
-
-b. Rule/category Semgrep flagged
-Command injection / unsafe shell execution:
+Semgrep category:
 
 - `python.fastapi.os.tainted-os-command-stdlib-fastapi-secure-default.tainted-os-command-stdlib-fastapi-secure-default`
 - `python.lang.security.audit.subprocess-shell-true.subprocess-shell-true`
 
-c. Brief risk description
-The endpoint accepted `cmd` from the request query string and passed it directly
-to `subprocess.run` with `shell=True`. Because the command string was interpreted
-by the operating system shell, an attacker could include shell syntax such as
-`;`, `&`, or `|` to run additional commands. For example, an input like
-`python --version; whoami` could execute both commands instead of being treated
-as a single safe argument.
-
-d. Your change (short code diff or explanation, AI coding tool usage)
-I used Codex to replace arbitrary shell command execution with a small allowlist
-of supported debug commands. The endpoint now accepts only the symbolic command
-name `python-version`, maps it to a fixed argument list, and runs it without
-`shell=True`.
+Risk: The endpoint accepted `cmd` from the query string and passed it to `subprocess.run(..., shell=True)`. Because the string was interpreted by a shell, an attacker could use shell syntax such as `;`, `&`, or `|` to run additional commands.
 
 Before:
 
@@ -133,7 +73,7 @@ Before:
 def debug_run(cmd: str) -> dict[str, str]:
     import subprocess
 
-    completed = subprocess.run(cmd, shell=True, capture_output=True, text=True)  # noqa: S602,S603
+    completed = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     return {
         "returncode": str(completed.returncode),
         "stdout": completed.stdout,
@@ -168,63 +108,24 @@ def debug_run(cmd: str) -> dict[str, str]:
     }
 ```
 
-I also added tests in `backend/tests/test_notes.py` to confirm that
-`cmd=python-version` succeeds and an injection-style value such as
-`cmd=python-version; whoami` is rejected.
+Mitigation: The user now controls only a symbolic command name. The server maps that name to a fixed argument list and runs it without `shell=True`, so shell metacharacters in user input are not interpreted as executable syntax.
 
-e. Why this mitigates the issue
-The new code no longer gives user input to a shell. The user controls only a
-small command name, and the server translates that name into a fixed list of
-arguments. Since `subprocess.run` receives a list and `shell=True` is not used,
-shell metacharacters in user input are not interpreted as executable syntax. The
-allowlist also prevents callers from choosing arbitrary programs to run.
+Regression tests:
 
-Verification:
+- `test_debug_run_allows_known_command`
+- `test_debug_run_rejects_shell_injection`
 
-```powershell
-conda run -n cs146s python -m pytest -q backend\tests
-```
+## Fix 3: Replace SQL String Interpolation With SQLAlchemy ORM
 
-Result: `8 passed`.
+File and lines: `backend/app/routers/notes.py`, around `unsafe_search`.
 
-## Fix #3
-a. File and line(s)
-`backend/app/routers/notes.py`, previously lines 71-80:
-
-```python
-sql = text(
-    f"""
-    SELECT id, title, content, created_at, updated_at
-    FROM notes
-    WHERE title LIKE '%{q}%' OR content LIKE '%{q}%'
-    ORDER BY created_at DESC
-    LIMIT 50
-    """
-)
-rows = db.execute(sql).all()
-```
-
-b. Rule/category Semgrep flagged
-SQL injection / unsafe SQL construction:
+Semgrep category:
 
 - `python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text`
 - `python.fastapi.db.sqlalchemy-fastapi.sqlalchemy-fastapi`
 - `python.fastapi.db.generic-sql-fastapi.generic-sql-fastapi`
 
-c. Brief risk description
-The endpoint accepted the search query `q` from the request and inserted it
-directly into a SQL string with an f-string. Because the user-controlled value
-became part of the SQL syntax, an attacker could provide input such as
-`' OR 1=1 --` to change the `WHERE` clause and return rows that should not match
-the search. In a more permissive database configuration, this pattern can also
-lead to data modification or deletion attempts.
-
-d. Your change (short code diff or explanation, AI coding tool usage)
-I used Codex to replace the hand-written SQL string with a SQLAlchemy ORM query.
-The endpoint keeps the same route and response shape, but the search term is now
-handled as data by SQLAlchemy instead of being interpolated into raw SQL. I also
-moved the fixed `/notes/unsafe-search` route before `/notes/{note_id}` so FastAPI
-matches the literal route before the dynamic note-id route.
+Risk: The endpoint inserted the request parameter `q` directly into a SQL string with an f-string. An attacker could provide input such as `' OR 1=1 --` to alter the SQL query logic.
 
 Before:
 
@@ -241,7 +142,6 @@ def unsafe_search(q: str, db: Session = Depends(get_db)) -> list[NoteRead]:
         """
     )
     rows = db.execute(sql).all()
-    ...
 ```
 
 After:
@@ -259,31 +159,75 @@ def unsafe_search(q: str, db: Session = Depends(get_db)) -> list[NoteRead]:
     return [NoteRead.model_validate(row) for row in rows]
 ```
 
-I also removed the now-unused `text` import from `backend/app/routers/notes.py`
-and added a regression test in `backend/tests/test_notes.py`:
+Mitigation: SQLAlchemy now builds the SQL statement and treats the user-controlled search text as data. Injection payloads are interpreted as literal search strings instead of SQL syntax.
+
+Regression test:
+
+- `test_unsafe_search_treats_sql_payload_as_plain_text`
+
+## Fix 4: Restrict Debug File Reads to a Safe Directory
+
+File and lines: `backend/app/routers/notes.py`, around `debug_read`.
+
+Semgrep category:
+
+- `python.fastapi.file.tainted-path-traversal-stdlib-fastapi.tainted-path-traversal-stdlib-fastapi`
+
+Risk: The endpoint accepted `path` from the query string and passed it directly to `open(path)`. A malicious user could request paths such as `../...` or an absolute path to read files outside the intended application data area.
+
+Before:
 
 ```python
-def test_unsafe_search_treats_sql_payload_as_plain_text(client):
-    client.post("/notes/", json={"title": "needle", "content": "safe content"})
-    client.post("/notes/", json={"title": "unrelated", "content": "ordinary content"})
-
-    r = client.get("/notes/unsafe-search", params={"q": "' OR 1=1 --"})
-
-    assert r.status_code == 200
-    assert r.json() == []
+@router.get("/debug/read")
+def debug_read(path: str) -> dict[str, str]:
+    try:
+        content = open(path).read(1024)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return {"snippet": content}
 ```
 
-e. Why this mitigates the issue
-The new query is built with SQLAlchemy expressions, so the SQL structure is
-fixed by the application code and the request parameter is treated as a value.
-Attack strings like `' OR 1=1 --` are interpreted as literal search text instead
-of SQL syntax. This removes the injection path while preserving the intended
-title/content search behavior.
+After:
 
-Verification:
+```python
+_READ_BASE_DIR = Path("data").resolve()
+
+
+@router.get("/debug/read")
+def debug_read(path: str) -> dict[str, str]:
+    requested_path = (_READ_BASE_DIR / path).resolve()
+    if not requested_path.is_relative_to(_READ_BASE_DIR):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if not requested_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        content = requested_path.read_text(encoding="utf-8")[:1024]
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return {"snippet": content}
+```
+
+Mitigation: The endpoint now resolves the requested path against a fixed base directory and confirms the final path is still inside that base directory. This blocks both `../` traversal and absolute-path escapes. It also checks that the target is a file before reading it.
+
+Regression tests:
+
+- `test_debug_read_allows_file_inside_base_dir`
+- `test_debug_read_rejects_path_traversal`
+- `test_debug_read_rejects_absolute_path_escape`
+
+## Verification
+
+I ran the project tests from `week6/` using the local Conda environment:
 
 ```powershell
 conda run -n cs146s python -m pytest -q backend\tests
 ```
 
-Result: `8 passed`.
+Result:
+
+```text
+11 passed
+```
+
+I also checked `make test` and `make run` in an activated `cs146s` PowerShell session. On this Windows machine, both fail before pytest or uvicorn starts because Git Bash cannot create a signal pipe, so I used the Conda/Python pytest command above for verification.
