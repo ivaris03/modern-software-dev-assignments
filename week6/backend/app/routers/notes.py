@@ -159,8 +159,20 @@ def debug_eval(expr: str) -> dict[str, str]:
 @router.get("/debug/run")
 def debug_run(cmd: str) -> dict[str, str]:
     import subprocess
+    import sys
 
-    completed = subprocess.run(cmd, shell=True, capture_output=True, text=True)  # noqa: S602,S603
+    allowed_commands = {
+        "python-version": [sys.executable, "--version"],
+    }
+    if cmd not in allowed_commands:
+        raise HTTPException(status_code=400, detail="Command not allowed")
+
+    completed = subprocess.run(
+        allowed_commands[cmd],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
     return {
         "returncode": str(completed.returncode),
         "stdout": completed.stdout,

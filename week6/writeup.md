@@ -24,8 +24,9 @@ access, and wildcard CORS. The supply-chain findings came from outdated pinned
 dependencies in `requirements.txt`, including old versions of Werkzeug,
 requests, Jinja2, PyYAML, and pydantic.
 
-For this fix, I prioritized the `eval(expr)` finding because it allows direct
-code execution from a request parameter. I treated some other findings, such as
+For these fixes, I prioritized the `eval(expr)` finding and the `shell=True`
+subprocess finding because both can allow direct code or command execution from
+request parameters. I treated some other findings, such as
 `offset(skip).limit(limit)`, as lower priority/noisier because FastAPI parses
 those values as integers and SQLAlchemy builds the query rather than interpolating
 raw SQL strings.
@@ -95,23 +96,96 @@ Verification:
 conda run -n cs146s python -m pytest -q backend\tests
 ```
 
-Result: `5 passed`.
+Result: `7 passed`.
 
 ## Fix #2
 a. File and line(s)
-> TODO
+`backend/app/routers/notes.py`, previously line 163:
+
+```python
+completed = subprocess.run(cmd, shell=True, capture_output=True, text=True)  # noqa: S602,S603
+```
 
 b. Rule/category Semgrep flagged
-> TODO
+Command injection / unsafe shell execution:
+
+- `python.fastapi.os.tainted-os-command-stdlib-fastapi-secure-default.tainted-os-command-stdlib-fastapi-secure-default`
+- `python.lang.security.audit.subprocess-shell-true.subprocess-shell-true`
 
 c. Brief risk description
-> TODO
+The endpoint accepted `cmd` from the request query string and passed it directly
+to `subprocess.run` with `shell=True`. Because the command string was interpreted
+by the operating system shell, an attacker could include shell syntax such as
+`;`, `&`, or `|` to run additional commands. For example, an input like
+`python --version; whoami` could execute both commands instead of being treated
+as a single safe argument.
 
 d. Your change (short code diff or explanation, AI coding tool usage)
-> TODO
+I used Codex to replace arbitrary shell command execution with a small allowlist
+of supported debug commands. The endpoint now accepts only the symbolic command
+name `python-version`, maps it to a fixed argument list, and runs it without
+`shell=True`.
+
+Before:
+
+```python
+@router.get("/debug/run")
+def debug_run(cmd: str) -> dict[str, str]:
+    import subprocess
+
+    completed = subprocess.run(cmd, shell=True, capture_output=True, text=True)  # noqa: S602,S603
+    return {
+        "returncode": str(completed.returncode),
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+    }
+```
+
+After:
+
+```python
+@router.get("/debug/run")
+def debug_run(cmd: str) -> dict[str, str]:
+    import subprocess
+    import sys
+
+    allowed_commands = {
+        "python-version": [sys.executable, "--version"],
+    }
+    if cmd not in allowed_commands:
+        raise HTTPException(status_code=400, detail="Command not allowed")
+
+    completed = subprocess.run(
+        allowed_commands[cmd],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    return {
+        "returncode": str(completed.returncode),
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+    }
+```
+
+I also added tests in `backend/tests/test_notes.py` to confirm that
+`cmd=python-version` succeeds and an injection-style value such as
+`cmd=python-version; whoami` is rejected.
 
 e. Why this mitigates the issue
-> TODO
+The new code no longer gives user input to a shell. The user controls only a
+small command name, and the server translates that name into a fixed list of
+arguments. Since `subprocess.run` receives a list and `shell=True` is not used,
+shell metacharacters in user input are not interpreted as executable syntax. The
+allowlist also prevents callers from choosing arbitrary programs to run.
+
+Verification:
+
+```powershell
+conda run -n cs146s python -m pytest -q backend\tests
+```
+
+Result: `7 passed`.
 
 ## Fix #3
 a. File and line(s)

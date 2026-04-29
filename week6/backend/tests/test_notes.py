@@ -37,3 +37,19 @@ def test_debug_eval_rejects_code_execution(client):
     )
 
     assert r.status_code == 400
+
+
+def test_debug_run_allows_known_command(client):
+    r = client.get("/notes/debug/run", params={"cmd": "python-version"})
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["returncode"] == "0"
+    assert "Python" in data["stdout"] or "Python" in data["stderr"]
+
+
+def test_debug_run_rejects_shell_injection(client):
+    r = client.get("/notes/debug/run", params={"cmd": "python-version; whoami"})
+
+    assert r.status_code == 400
+    assert r.json()["detail"] == "Command not allowed"
