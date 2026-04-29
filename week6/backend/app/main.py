@@ -18,10 +18,15 @@ Path("data").mkdir(parents=True, exist_ok=True)
 # Mount static frontend
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
+ALLOWED_ORIGINS = [
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+]
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

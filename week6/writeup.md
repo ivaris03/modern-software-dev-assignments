@@ -257,12 +257,54 @@ python-dotenv==1.1.1
 
 Mitigation: I updated the pinned dependencies to modern versions that satisfy the fixed-version guidance from the Semgrep output. I kept the versions aligned with the current code style, which already uses SQLAlchemy 2 and Pydantic 2 APIs such as `model_validate` and `from_attributes`. I also added `python-dotenv` because `backend/app/db.py` imports `load_dotenv`, so a fresh install needs that dependency declared explicitly.
 
+## Fix 6: Replace Wildcard CORS With Explicit Local Origins
+
+File and lines: `backend/app/main.py`, around the `CORSMiddleware` configuration.
+
+Semgrep category:
+
+- `python.fastapi.security.wildcard-cors.wildcard-cors`
+
+Risk: The application configured CORS with `allow_origins=["*"]` while also allowing credentials. A wildcard CORS policy lets any website make cross-origin browser requests to the API. In a production setting, that can expose authenticated endpoints or private API behavior to untrusted origins.
+
+Before:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+After:
+
+```python
+ALLOWED_ORIGINS = [
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+]
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+Mitigation: I replaced the wildcard with an explicit allowlist for the local development origins used by the Week 6 app. This keeps the browser-based frontend working locally while preventing arbitrary external origins from receiving cross-origin access.
+
 ## Verification
 
-I installed the updated `requirements.txt` and ran the project tests from `week6/`:
+I installed the updated `requirements.txt` and ran the project tests from `week6/`. After the CORS fix, I also reran the tests:
 
 ```powershell
-$env:PYTHONPATH='.'; pytest -q backend/tests
+python -m pytest -q
 ```
 
 Result:
